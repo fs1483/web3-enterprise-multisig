@@ -1,8 +1,8 @@
 import axios from 'axios';
 import type { AxiosInstance, AxiosResponse } from 'axios';
 
-// API Base Configuration
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+// API Base Configuration - Use relative path for Vite proxy
+const API_BASE_URL = '';
 
 class ApiService {
   private client: AxiosInstance;
@@ -159,6 +159,11 @@ class ApiService {
   // User API methods
   async getUsersForSelection() {
     return this.get('/api/v1/users/selection');
+  }
+
+  // Dashboard API methods - 待处理提案
+  async getPendingProposals() {
+    return this.get('/api/v1/dashboard/pending-proposals');
   }
 }
 

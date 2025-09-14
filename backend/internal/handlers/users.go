@@ -12,7 +12,7 @@ import (
 
 // GetProfile 获取用户资料
 func GetProfile(c *gin.Context) {
-	userID, _ := c.Get("user_id")
+	userID, _ := c.Get("userID")
 
 	var user models.User
 	if err := database.DB.First(&user, userID).Error; err != nil {
@@ -39,7 +39,7 @@ func GetProfile(c *gin.Context) {
 
 // UpdateProfile 更新用户资料
 func UpdateProfile(c *gin.Context) {
-	userID, _ := c.Get("user_id")
+	userID, _ := c.Get("userID")
 
 	var req validators.UpdateProfileRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

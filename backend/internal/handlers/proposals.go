@@ -18,7 +18,7 @@ import (
 
 // GetProposals 获取提案列表
 func GetProposals(c *gin.Context) {
-	userID, _ := c.Get("user_id")
+	userID, _ := c.Get("userID")
 
 	// 获取用户信息以获取钱包地址
 	var user models.User
@@ -87,7 +87,7 @@ func GetProposals(c *gin.Context) {
 
 // CreateProposal 创建提案
 func CreateProposal(c *gin.Context) {
-	userID, _ := c.Get("user_id")
+	userID, _ := c.Get("userID")
 
 	var req validators.CreateProposalRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -254,7 +254,7 @@ func convertEthToWei(ethAmount string) string {
 // GetProposal 获取单个提案
 func GetProposal(c *gin.Context) {
 	proposalID := c.Param("id")
-	userID, _ := c.Get("user_id")
+	userID, _ := c.Get("userID")
 
 	proposalUUID, err := uuid.Parse(proposalID)
 	if err != nil {
@@ -309,7 +309,7 @@ func GetProposal(c *gin.Context) {
 // UpdateProposal 更新提案信息
 func UpdateProposal(c *gin.Context) {
 	proposalID := c.Param("id")
-	userID, _ := c.Get("user_id")
+	userID, _ := c.Get("userID")
 
 	proposalUUID, err := uuid.Parse(proposalID)
 	if err != nil {
@@ -409,7 +409,7 @@ func UpdateProposal(c *gin.Context) {
 // DeleteProposal 删除提案
 func DeleteProposal(c *gin.Context) {
 	proposalID := c.Param("id")
-	userID, _ := c.Get("user_id")
+	userID, _ := c.Get("userID")
 
 	proposalUUID, err := uuid.Parse(proposalID)
 	if err != nil {
@@ -473,7 +473,7 @@ func DeleteProposal(c *gin.Context) {
 // SignProposal 签名提案
 func SignProposal(c *gin.Context) {
 	proposalID := c.Param("id")
-	userID, _ := c.Get("user_id")
+	userID, _ := c.Get("userID")
 
 	proposalUUID, err := uuid.Parse(proposalID)
 	if err != nil {
@@ -731,7 +731,7 @@ func RemoveSignature(c *gin.Context) {
 	}
 
 	// 验证用户权限
-	userID, _ := c.Get("user_id")
+	userID, _ := c.Get("userID")
 	var signature models.Signature
 	if err := database.DB.Where("id = ? AND proposal_id = ? AND signer_id = ?",
 		signatureUUID, proposalUUID, userID).First(&signature).Error; err != nil {

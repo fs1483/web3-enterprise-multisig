@@ -42,7 +42,7 @@ export const PendingProposalsWidget: React.FC = () => {
       setLoading(true);
       setError(null);
       
-      const response = await apiService.get('/v1/dashboard/pending-proposals') as any;
+      const response = await apiService.getPendingProposals() as any;
       if (response.success) {
         setPendingProposals(response.data || []);
       } else {

@@ -40,7 +40,7 @@ func GetWorkflowStatus(c *gin.Context) {
 // ApproveProposal 审批提案
 func ApproveProposal(c *gin.Context) {
 	proposalID := c.Param("proposalId")
-	userID, _ := c.Get("user_id")
+	userID, _ := c.Get("userID")
 
 	proposalUUID, err := uuid.Parse(proposalID)
 	if err != nil {

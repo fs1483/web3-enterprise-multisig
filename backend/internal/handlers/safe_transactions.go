@@ -29,7 +29,7 @@ func NewSafeTransactionHandler(safeTransactionService *services.SafeTransactionS
 // 前端提交区块链交易后，立即调用此接口创建交易记录用于状态跟踪
 func (h *SafeTransactionHandler) CreateSafeTransaction(c *gin.Context) {
 	// 获取当前用户ID
-	userID, exists := c.Get("user_id")
+	userID, exists := c.Get("userID")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{
 			"error": "用户未认证",
@@ -96,7 +96,7 @@ func (h *SafeTransactionHandler) GetSafeTransaction(c *gin.Context) {
 	}
 
 	// 检查用户权限
-	userID, _ := c.Get("user_id")
+	userID, _ := c.Get("userID")
 	if safeTransaction.UserID != userID.(uuid.UUID) {
 		c.JSON(http.StatusForbidden, gin.H{
 			"error": "无权访问此交易记录",
@@ -116,7 +116,7 @@ func (h *SafeTransactionHandler) GetSafeTransaction(c *gin.Context) {
 // GET /api/v1/safe-transactions
 func (h *SafeTransactionHandler) GetUserSafeTransactions(c *gin.Context) {
 	// 获取当前用户ID
-	userID, _ := c.Get("user_id")
+	userID, _ := c.Get("userID")
 
 	// 分页参数
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -157,7 +157,7 @@ func (h *SafeTransactionHandler) GetUserSafeTransactions(c *gin.Context) {
 // GET /api/v1/safe-transactions/stats
 func (h *SafeTransactionHandler) GetTransactionStats(c *gin.Context) {
 	// 获取当前用户ID
-	userID, _ := c.Get("user_id")
+	userID, _ := c.Get("userID")
 
 	// 获取统计信息
 	stats, err := h.safeTransactionService.GetTransactionStats(userID.(uuid.UUID))

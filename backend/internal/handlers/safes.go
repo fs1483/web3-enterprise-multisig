@@ -27,7 +27,7 @@ import (
 
 // GetSafes 获取用户的 Safe 钱包列表 - 简化版本，直接查询数据库
 func GetSafes(c *gin.Context) {
-	userID, _ := c.Get("user_id")
+	userID, _ := c.Get("userID")
 
 	// 分页参数
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -175,7 +175,7 @@ func GetSafes(c *gin.Context) {
 // CreateSafe 创建新的 Safe 钱包（企业级异步模式）
 // 前端提交区块链交易后调用此接口，立即返回交易记录ID，不等待区块链确认
 func CreateSafe(c *gin.Context) {
-	userID, _ := c.Get("user_id")
+	userID, _ := c.Get("userID")
 
 	// 解析请求参数 - 现在包含交易哈希
 	var req struct {
@@ -286,7 +286,7 @@ func CreateSafe(c *gin.Context) {
 // GetSafe 获取单个 Safe 钱包详情（通过ID）
 func GetSafe(c *gin.Context) {
 	safeID := c.Param("id")
-	userID, _ := c.Get("user_id")
+	userID, _ := c.Get("userID")
 
 	safeUUID, err := uuid.Parse(safeID)
 	if err != nil {
@@ -341,7 +341,7 @@ func GetSafe(c *gin.Context) {
 // GetSafeByAddress 通过Safe地址获取Safe详情
 func GetSafeByAddress(c *gin.Context) {
 	safeAddress := c.Param("address")
-	userID, _ := c.Get("user_id")
+	userID, _ := c.Get("userID")
 
 	// 调试日志
 	fmt.Printf("DEBUG: Received safe address: %s\n", safeAddress)
@@ -407,7 +407,7 @@ func GetSafeByAddress(c *gin.Context) {
 // UpdateSafe 更新 Safe 钱包信息
 func UpdateSafe(c *gin.Context) {
 	safeID := c.Param("id")
-	userID, _ := c.Get("user_id")
+	userID, _ := c.Get("userID")
 
 	safeUUID, err := uuid.Parse(safeID)
 	if err != nil {

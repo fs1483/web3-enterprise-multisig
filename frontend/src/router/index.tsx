@@ -4,6 +4,7 @@ import { useAuthStore } from '../stores/authStore';
 import { LoginPage } from '../pages/auth/LoginPage';
 import { RegisterPage } from '../pages/auth/RegisterPage';
 import { DashboardPage } from '../pages/DashboardPage';
+import { OptimizedDashboardPage } from '../pages/OptimizedDashboardPage';
 import { ProposalsPage } from '../pages/proposals/ProposalsPage';
 import { ProposalDetailPage } from '../pages/proposals/ProposalDetailPage';
 import { CreateProposalPage } from '../pages/proposals/CreateProposalPage';
@@ -63,6 +64,14 @@ export const AppRouter: React.FC = () => {
         {/* Protected Routes */}
         <Route
           path="/"
+          element={
+            <ProtectedRoute>
+              <OptimizedDashboardPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/dashboard/legacy"
           element={
             <ProtectedRoute>
               <DashboardPage />

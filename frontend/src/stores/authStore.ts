@@ -46,7 +46,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
         set({ isLoading: true, error: null });
         
         try {
-          const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/auth/login`, {
+          const response = await fetch('/api/v1/auth/login', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -92,7 +92,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
         set({ isLoading: true, error: null });
         
         try {
-          const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/auth/register`, {
+          const response = await fetch('/api/v1/auth/register', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -137,7 +137,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
         set({ isLoading: true, error: null });
         
         try {
-          const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/auth/wallet-register`, {
+          const response = await fetch('/api/v1/auth/wallet-register', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -189,7 +189,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
         set({ isLoading: true, error: null });
         
         try {
-          const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/auth/wallet-login`, {
+          const response = await fetch('/api/v1/auth/wallet-login', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -263,7 +263,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
         set({ isLoading: true, error: null });
         
         try {
-          const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/users/profile`, {
+          const response = await fetch('/api/v1/users/profile', {
             method: 'PUT',
             headers: {
               'Content-Type': 'application/json',

@@ -177,6 +177,9 @@ func setupRouter(wsHub *websocket.Hub, safeTransactionHandler *handlers.SafeTran
 		protected.GET("/dashboard/stats", handlers.GetDashboardStats)
 		protected.GET("/dashboard/activity", handlers.GetRecentActivity)
 		protected.GET("/dashboard/pending-proposals", handlers.GetPendingProposals)
+		
+		// Dashboard 卡片路由 - 新增功能，不影响现有路由
+		protected.GET("/dashboard/cards", handlers.GetDashboardCards)
 	}
 
 	return router
