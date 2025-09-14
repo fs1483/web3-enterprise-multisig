@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: multisig-postgres
+    environment:
+      POSTGRES_DB: multisig_db
+      POSTGRES_USER: multisig_user
+      POSTGRES_PASSWORD: multisig_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    #  - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - multisig-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: multisig-redis
+    ports:
+      - "6379:6379"
+    networks:
+      - multisig-network
+
+volumes:
+  postgres_data:
+
+networks:
+  multisig-network:
+    driver: bridge

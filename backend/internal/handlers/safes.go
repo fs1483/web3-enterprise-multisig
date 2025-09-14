@@ -1,0 +1,595 @@
+package handlers
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"log"
+	"math/big"
+	"net/http"
+	"os"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/ethereum/go-ethereum"
+	"github.com/ethereum/go-ethereum/accounts/abi"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+	"gorm.io/gorm"
+
+	"web3-enterprise-multisig/internal/database"
+	"web3-enterprise-multisig/internal/models"
+	"web3-enterprise-multisig/internal/validators"
+)
+
+// GetSafes 获取用户的 Safe 钱包列表 - 简化版本，直接查询数据库
+func GetSafes(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+
+	// 分页参数
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
+	offset := (page - 1) * limit
+
+	// 过滤参数
+	status := c.DefaultQuery("status", "active")
+
+	fmt.Printf("Debug: 查询参数 - page: %d, limit: %d, offset: %d, status: %s\n", page, limit, offset, status)
+	fmt.Printf("Debug: 用户ID: %v\n", userID)
+
+	// 直接使用原生SQL查询，确保字段匹配
+	var safes []struct {
+		ID            string    `json:"id"`
+		Name          string    `json:"name"`
+		Description   *string   `json:"description"`
+		Address       string    `json:"address"`
+		ChainID       int       `json:"chain_id"`
+		Threshold     int       `json:"threshold"`
+		Owners        string    `json:"owners"` // PostgreSQL数组作为字符串返回
+		SafeVersion   *string   `json:"safe_version"`
+		Status        string    `json:"status"`
+		CreatedBy     string    `json:"created_by"`
+		CreatedAt     string    `json:"created_at"`
+		UpdatedAt     string    `json:"updated_at"`
+		TransactionID *string   `json:"transaction_id"`
+	}
+
+	// 先测试数据库连接和基本查询
+	var testCount int64
+	if err := database.DB.Raw("SELECT COUNT(*) FROM safes").Scan(&testCount).Error; err != nil {
+		fmt.Printf("Debug: 数据库连接测试失败: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Database connection failed",
+			"code":  "DB_ERROR",
+		})
+		return
+	}
+	fmt.Printf("Debug: 数据库中总共有 %d 条Safe记录\n", testCount)
+
+	// 测试不带条件的查询
+	var allSafes []struct {
+		ID     string `json:"id"`
+		Name   string `json:"name"`
+		Status string `json:"status"`
+	}
+	if err := database.DB.Raw("SELECT id, name, status FROM safes ORDER BY created_at DESC LIMIT 5").Scan(&allSafes).Error; err != nil {
+		fmt.Printf("Debug: 基本查询失败: %v\n", err)
+	} else {
+		fmt.Printf("Debug: 基本查询成功，返回 %d 条记录:\n", len(allSafes))
+		for i, safe := range allSafes {
+			fmt.Printf("Debug: 记录 %d - ID: %s, Name: %s, Status: %s\n", i+1, safe.ID, safe.Name, safe.Status)
+		}
+	}
+
+	// 构建查询SQL
+	sqlQuery := `
+		SELECT 
+			id, 
+			name, 
+			description, 
+			address, 
+			chain_id, 
+			threshold, 
+			owners::text as owners,
+			safe_version, 
+			status, 
+			created_by, 
+			created_at, 
+			updated_at,
+			transaction_id
+		FROM safes 
+		WHERE status = $1
+		ORDER BY created_at DESC 
+		LIMIT $2 OFFSET $3
+	`
+
+	fmt.Printf("Debug: 执行SQL查询，参数: status=%s, limit=%d, offset=%d\n", status, limit, offset)
+	if err := database.DB.Raw(sqlQuery, status, limit, offset).Scan(&safes).Error; err != nil {
+		fmt.Printf("Debug: SQL查询失败: %v\n", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to fetch safes",
+			"code":  "FETCH_ERROR",
+		})
+		return
+	}
+
+	// 查询总数
+	var total int64
+	countQuery := "SELECT COUNT(*) FROM safes WHERE status = $1"
+	if err := database.DB.Raw(countQuery, status).Scan(&total).Error; err != nil {
+		fmt.Printf("Debug: Count查询失败: %v\n", err)
+		total = 0
+	}
+
+	fmt.Printf("Debug: 成功查询到 %d 个Safe记录，总数: %d\n", len(safes), total)
+	for i, safe := range safes {
+		fmt.Printf("Debug: Safe %d - ID: %s, Name: %s, Address: %s, Owners: %s\n", i+1, safe.ID, safe.Name, safe.Address, safe.Owners)
+	}
+
+	// 转换owners字段格式，从PostgreSQL数组字符串转为JSON数组
+	var formattedSafes []map[string]interface{}
+	for _, safe := range safes {
+		// 解析PostgreSQL数组格式 {item1,item2,item3}
+		ownersArray := []string{}
+		if safe.Owners != "" && safe.Owners != "{}" {
+			ownersStr := safe.Owners
+			if len(ownersStr) > 2 && ownersStr[0] == '{' && ownersStr[len(ownersStr)-1] == '}' {
+				content := ownersStr[1 : len(ownersStr)-1]
+				if content != "" {
+					ownersArray = strings.Split(content, ",")
+				}
+			}
+		}
+
+		formattedSafe := map[string]interface{}{
+			"id":             safe.ID,
+			"name":           safe.Name,
+			"description":    safe.Description,
+			"address":        safe.Address,
+			"chain_id":       safe.ChainID,
+			"threshold":      safe.Threshold,
+			"owners":         ownersArray,
+			"safe_version":   safe.SafeVersion,
+			"status":         safe.Status,
+			"created_by":     safe.CreatedBy,
+			"created_at":     safe.CreatedAt,
+			"updated_at":     safe.UpdatedAt,
+			"transaction_id": safe.TransactionID,
+		}
+		formattedSafes = append(formattedSafes, formattedSafe)
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"safes": formattedSafes,
+		"pagination": gin.H{
+			"page":  page,
+			"limit": limit,
+			"total": total,
+		},
+	})
+}
+
+// CreateSafe 创建新的 Safe 钱包（企业级异步模式）
+// 前端提交区块链交易后调用此接口，立即返回交易记录ID，不等待区块链确认
+func CreateSafe(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+
+	// 解析请求参数 - 现在包含交易哈希
+	var req struct {
+		TxHash      string   `json:"tx_hash" binding:"required,len=66"`        // 区块链交易哈希
+		Name        string   `json:"name" binding:"required,min=1,max=255"`    // Safe名称
+		Description string   `json:"description" binding:"max=1000"`           // Safe描述
+		Owners      []string `json:"owners" binding:"required,min=1"`          // 所有者地址数组
+		Threshold   int      `json:"threshold" binding:"required,min=1"`       // 签名阈值
+		ChainID     int      `json:"chain_id" binding:"required"`              // 链ID
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "请求参数格式错误",
+			"code":  "INVALID_REQUEST",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// 验证阈值不能大于所有者数量
+	if req.Threshold > len(req.Owners) {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "签名阈值不能大于所有者数量",
+			"code":  "INVALID_THRESHOLD",
+		})
+		return
+	}
+
+	// 验证所有者地址格式
+	for _, owner := range req.Owners {
+		if len(owner) != 42 {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": "所有者地址格式错误: " + owner,
+				"code":  "INVALID_OWNER_ADDRESS",
+			})
+			return
+		}
+	}
+
+	// 检查交易哈希是否已存在（防重复提交）
+	var existingTx models.SafeTransaction
+	err := database.DB.Where("tx_hash = ?", req.TxHash).First(&existingTx).Error
+	if err == nil {
+		// 交易哈希已存在，返回冲突错误
+		c.JSON(http.StatusConflict, gin.H{
+			"error": "交易哈希已存在，请勿重复提交",
+			"code":  "DUPLICATE_TRANSACTION",
+			"transaction_id": existingTx.ID,
+		})
+		return
+	} else if !errors.Is(err, gorm.ErrRecordNotFound) {
+		// 数据库查询出现其他错误
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "检查交易哈希时发生错误",
+			"code":  "DATABASE_ERROR",
+			"details": err.Error(),
+		})
+		return
+	}
+	// err == gorm.ErrRecordNotFound 是正常情况，表示交易哈希不存在，可以继续创建
+
+	// 创建Safe交易记录（异步处理模式）
+	safeTransaction := models.SafeTransaction{
+		ID:              uuid.New(),
+		UserID:          userID.(uuid.UUID),
+		TxHash:          req.TxHash,
+		Status:          models.StatusSubmitted, // 初始状态：已提交
+		SafeName:        req.Name,
+		SafeDescription: req.Description,        // 修复：使用正确的描述字段
+		Owners:          models.StringArray(req.Owners),
+		Threshold:       req.Threshold,
+		ChainID:         req.ChainID,
+		CreatedAt:       time.Now(),
+		UpdatedAt:       time.Now(),
+		RetryCount:      0,
+	}
+
+	// 保存交易记录到数据库
+	if err := database.DB.Create(&safeTransaction).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "创建Safe交易记录失败",
+			"code":  "CREATE_TRANSACTION_ERROR",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// 立即返回成功响应，不等待区块链确认
+	c.JSON(http.StatusCreated, gin.H{
+		"message": "Safe创建交易已提交！",
+		"description": "交易已记录，正在等待区块链确认。您可以关闭页面，我们会在确认后通知您。",
+		"transaction": gin.H{
+			"id":          safeTransaction.ID,
+			"tx_hash":     safeTransaction.TxHash,
+			"status":      safeTransaction.Status,
+			"status_desc": safeTransaction.GetStatusDescription(),
+			"progress":    safeTransaction.GetProgress(),
+			"created_at":  safeTransaction.CreatedAt,
+		},
+		"next_steps": gin.H{
+			"status_check_url": "/api/v1/safe-transactions/" + safeTransaction.ID.String(),
+			"websocket_topic": "safe_creation_" + safeTransaction.ID.String(),
+		},
+	})
+}
+
+// GetSafe 获取单个 Safe 钱包详情（通过ID）
+func GetSafe(c *gin.Context) {
+	safeID := c.Param("id")
+	userID, _ := c.Get("user_id")
+
+	safeUUID, err := uuid.Parse(safeID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid safe ID",
+			"code":  "INVALID_SAFE_ID",
+		})
+		return
+	}
+
+	var safe models.Safe
+	if err := database.DB.Preload("Creator").Preload("Proposals").
+		First(&safe, safeUUID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "Safe not found",
+			"code":  "SAFE_NOT_FOUND",
+		})
+		return
+	}
+
+	// 检查用户权限
+	hasAccess := safe.CreatedBy == userID
+
+	if !hasAccess {
+		// 获取当前用户的钱包地址
+		var user models.User
+		if err := database.DB.First(&user, userID).Error; err == nil && user.WalletAddress != nil {
+			userWalletAddress := *user.WalletAddress
+			// 检查用户的钱包地址是否在Safe的所有者列表中
+			for _, owner := range safe.Owners {
+				if strings.EqualFold(owner, userWalletAddress) {
+					hasAccess = true
+					break
+				}
+			}
+		}
+	}
+
+	if !hasAccess {
+		c.JSON(http.StatusForbidden, gin.H{
+			"error": "Not authorized to view this safe",
+			"code":  "NOT_AUTHORIZED",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"safe": safe,
+	})
+}
+
+// GetSafeByAddress 通过Safe地址获取Safe详情
+func GetSafeByAddress(c *gin.Context) {
+	safeAddress := c.Param("address")
+	userID, _ := c.Get("user_id")
+
+	// 调试日志
+	fmt.Printf("DEBUG: Received safe address: %s\n", safeAddress)
+	fmt.Printf("DEBUG: Address length: %d\n", len(safeAddress))
+
+	// 验证地址格式
+	if len(safeAddress) != 42 || safeAddress[:2] != "0x" {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid safe address format",
+			"code":  "INVALID_SAFE_ADDRESS",
+		})
+		return
+	}
+
+	var safe models.Safe
+	if err := database.DB.Where("address = ?", safeAddress).
+		Preload("Creator").First(&safe).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": "Safe not found",
+				"code":  "SAFE_NOT_FOUND",
+			})
+		} else {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "Database error",
+				"code":  "DATABASE_ERROR",
+			})
+		}
+		return
+	}
+
+	// 检查用户权限
+	hasAccess := safe.CreatedBy == userID
+
+	if !hasAccess {
+		// 获取当前用户的钱包地址
+		var user models.User
+		if err := database.DB.First(&user, userID).Error; err == nil && user.WalletAddress != nil {
+			userWalletAddress := *user.WalletAddress
+			// 检查用户的钱包地址是否在Safe的所有者列表中
+			for _, owner := range safe.Owners {
+				if strings.EqualFold(owner, userWalletAddress) {
+					hasAccess = true
+					break
+				}
+			}
+		}
+	}
+
+	if !hasAccess {
+		c.JSON(http.StatusForbidden, gin.H{
+			"error": "Not authorized to view this safe",
+			"code":  "NOT_AUTHORIZED",
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"safe": safe,
+	})
+}
+
+// UpdateSafe 更新 Safe 钱包信息
+func UpdateSafe(c *gin.Context) {
+	safeID := c.Param("id")
+	userID, _ := c.Get("user_id")
+
+	safeUUID, err := uuid.Parse(safeID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid safe ID",
+			"code":  "INVALID_SAFE_ID",
+		})
+		return
+	}
+
+	var safe models.Safe
+	if err := database.DB.First(&safe, safeUUID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "Safe not found",
+			"code":  "SAFE_NOT_FOUND",
+		})
+		return
+	}
+
+	// 检查权限：只有创建者可以更新 Safe 信息
+	if safe.CreatedBy != userID {
+		c.JSON(http.StatusForbidden, gin.H{
+			"error": "Only the creator can update safe information",
+			"code":  "NOT_AUTHORIZED",
+		})
+		return
+	}
+
+	var req struct {
+		Name        string `json:"name" validate:"omitempty,min=1,max=255"`
+		Description string `json:"description" validate:"max=1000"`
+		Status      string `json:"status" validate:"omitempty,oneof=active inactive frozen"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid request format",
+			"code":  "INVALID_REQUEST",
+		})
+		return
+	}
+
+	// 验证请求数据
+	if err := validators.ValidateStruct(req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Validation failed",
+			"code":    "VALIDATION_ERROR",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// 更新 Safe 信息
+	updates := make(map[string]interface{})
+	if req.Name != "" {
+		updates["name"] = req.Name
+	}
+	if req.Description != "" {
+		updates["description"] = req.Description
+	}
+	if req.Status != "" {
+		updates["status"] = req.Status
+	}
+
+	if len(updates) > 0 {
+		if err := database.DB.Model(&safe).Updates(updates).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "Failed to update safe",
+				"code":  "UPDATE_ERROR",
+			})
+			return
+		}
+	}
+
+	c.JSON(http.StatusOK, gin.H{
+		"message": "Safe updated successfully",
+	})
+}
+
+// GetSafeNonce 获取Safe合约的当前nonce
+func GetSafeNonce(c *gin.Context) {
+	safeID := c.Param("id")
+	
+	safeUUID, err := uuid.Parse(safeID)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "Invalid safe ID",
+			"code":  "INVALID_SAFE_ID",
+		})
+		return
+	}
+
+	// 获取Safe信息
+	var safe models.Safe
+	if err := database.DB.First(&safe, safeUUID).Error; err != nil {
+		c.JSON(http.StatusNotFound, gin.H{
+			"error": "Safe not found",
+			"code":  "SAFE_NOT_FOUND",
+		})
+		return
+	}
+
+	// 连接到区块链 - 使用环境变量中的RPC URL
+	rpcURL := os.Getenv("ETHEREUM_RPC_URL")
+	if rpcURL == "" {
+		rpcURL = "https://sepolia.infura.io/v3/2051fcdf4e21463aa06f161d13a0a5f4" // fallback to .env value
+	}
+	log.Printf("=== GetSafeNonce API调试 ===")
+	log.Printf("使用RPC URL: %s", rpcURL)
+	log.Printf("Safe ID: %s", safeUUID)
+	log.Printf("Safe地址: %s", safe.Address)
+	
+	client, err := ethclient.Dial(rpcURL)
+	if err != nil {
+		log.Printf("❌ 连接区块链失败: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to connect to blockchain",
+			"code":  "BLOCKCHAIN_ERROR",
+		})
+		return
+	}
+	defer client.Close()
+	log.Printf("✅ 区块链连接成功")
+
+	// Safe合约ABI（只需要nonce方法）
+	safeABI, err := abi.JSON(strings.NewReader(`[
+		{
+			"inputs": [],
+			"name": "nonce",
+			"outputs": [{"internalType": "uint256", "name": "", "type": "uint256"}],
+			"stateMutability": "view",
+			"type": "function"
+		}
+	]`))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to parse Safe ABI",
+			"code":  "ABI_ERROR",
+		})
+		return
+	}
+
+	// 调用Safe合约的nonce方法
+	safeAddress := common.HexToAddress(safe.Address)
+	log.Printf("Calling nonce on Safe contract: %s", safeAddress.Hex())
+	
+	data, err := safeABI.Pack("nonce")
+	if err != nil {
+		log.Printf("Failed to pack nonce call: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to pack nonce call",
+			"code":  "PACK_ERROR",
+		})
+		return
+	}
+
+	msg := ethereum.CallMsg{
+		To:   &safeAddress,
+		Data: data,
+	}
+	
+	log.Printf("Making contract call to %s with data: %x", safeAddress.Hex(), data)
+	result, err := client.CallContract(context.Background(), msg, nil)
+	if err != nil {
+		log.Printf("Failed to call Safe contract %s: %v", safeAddress.Hex(), err)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": fmt.Sprintf("Failed to call Safe contract %s: %v", safeAddress.Hex(), err),
+			"code":  "CONTRACT_CALL_ERROR",
+		})
+		return
+	}
+	
+	log.Printf("Contract call successful, result: %x", result)
+
+	// 解析nonce
+	nonce := new(big.Int).SetBytes(result)
+	log.Printf("✅ Safe合约nonce查询成功: %s", nonce.String())
+	log.Printf("=== GetSafeNonce API完成 ===")
+
+	c.JSON(http.StatusOK, gin.H{
+		"nonce": nonce.String(),
+		"safe_address": safe.Address,
+		"chain_id": safe.ChainID,
+	})
+}
