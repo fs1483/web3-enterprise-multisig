@@ -64,6 +64,10 @@ const InPageNotificationModal: React.FC<InPageNotificationModalProps> = ({
         return <CheckCircle className="w-6 h-6 text-green-600" />;
       case 'proposal_executed':
         return <CheckCircle className="w-6 h-6 text-purple-600" />;
+      case 'proposal_execution_success':
+        return <CheckCircle className="w-6 h-6 text-green-600" />;
+      case 'proposal_execution_failed':
+        return <AlertTriangle className="w-6 h-6 text-red-600" />;
       case 'safe_created':
         return <Shield className="w-6 h-6 text-indigo-600" />;
       case 'warning':
@@ -84,6 +88,10 @@ const InPageNotificationModal: React.FC<InPageNotificationModalProps> = ({
         return 'border-green-500 bg-green-50';
       case 'proposal_executed':
         return 'border-purple-500 bg-purple-50';
+      case 'proposal_execution_success':
+        return 'border-green-500 bg-green-50';
+      case 'proposal_execution_failed':
+        return 'border-red-500 bg-red-50';
       case 'safe_created':
         return 'border-indigo-500 bg-indigo-50';
       case 'warning':

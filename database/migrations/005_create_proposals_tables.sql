@@ -23,8 +23,14 @@ CREATE TABLE IF NOT EXISTS proposals (
     current_signatures INTEGER DEFAULT 0,
     
     -- 状态管理
-    status VARCHAR(20) NOT NULL DEFAULT 'pending',
-    -- 状态流转: pending -> approved -> executed -> rejected
+    status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'approved', 'executed', 'confirmed', 'failed', 'rejected')),
+    -- 状态流转详细说明:
+    -- pending: 待签名状态，刚创建的提案
+    -- approved: 已获得足够签名，可以执行
+    -- executed: 已提交到区块链执行，等待确认
+    -- confirmed: 区块链执行成功并获得足够确认
+    -- failed: 区块链执行失败
+    -- rejected: 提案被拒绝或取消
     
     -- 区块链执行信息
     tx_hash VARCHAR(66), -- 执行交易哈希
@@ -35,7 +41,12 @@ CREATE TABLE IF NOT EXISTS proposals (
     created_at TIMESTAMP DEFAULT NOW(),
     approved_at TIMESTAMP, -- 获得足够签名的时间
     executed_at TIMESTAMP, -- 区块链执行时间
+    confirmed_at TIMESTAMP, -- 区块链确认成功时间
+    failed_at TIMESTAMP, -- 区块链执行失败时间
     updated_at TIMESTAMP DEFAULT NOW(),
+    
+    -- 失败信息
+    failure_reason TEXT, -- 失败原因描述
     
     -- 审计字段
     nonce BIGINT, -- Safe nonce
@@ -158,9 +169,13 @@ CREATE TRIGGER trigger_update_policies_updated_at
     EXECUTE FUNCTION update_policies_updated_at();
 
 -- 添加约束确保数据完整性
+-- ALTER TABLE proposals 
+-- ADD CONSTRAINT check_proposal_status 
+-- CHECK (status IN ('pending', 'approved', 'executed', 'rejected'));
+
 ALTER TABLE proposals 
-ADD CONSTRAINT check_proposal_status 
-CHECK (status IN ('pending', 'approved', 'executed', 'rejected'));
+ADD CONSTRAINT proposals_status_check 
+CHECK (status IN ('pending', 'approved', 'executed', 'confirmed', 'failed', 'rejected'));
 
 ALTER TABLE proposals 
 ADD CONSTRAINT check_proposal_type 

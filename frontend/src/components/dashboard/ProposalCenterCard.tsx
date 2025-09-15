@@ -70,7 +70,7 @@ export const ProposalCenterCard: React.FC<ProposalCenterCardProps> = ({ data, lo
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-red-600">紧急提案</p>
-              <p className="text-2xl font-bold text-red-700">{data.urgentProposals}</p>
+              <p className="text-2xl font-bold text-red-700">{data.urgentCount}</p>
             </div>
             <div className="h-6 w-6 bg-red-500 rounded-full flex items-center justify-center">
               <span className="text-white text-xs font-bold">!</span>
@@ -89,14 +89,28 @@ export const ProposalCenterCard: React.FC<ProposalCenterCardProps> = ({ data, lo
           </div>
         </div>
 
-        {/* 已执行提案 */}
-        <div className="bg-green-50 rounded-lg p-4">
-          <div className="flex items-center justify-between">
+        {/* 执行结果统计 */}
+        <div className="bg-gray-50 rounded-lg p-4">
+          <div className="flex items-center justify-between mb-3">
             <div>
-              <p className="text-sm font-medium text-green-600">已执行</p>
-              <p className="text-2xl font-bold text-green-700">{data.executedProposals}</p>
+              <p className="text-sm font-medium text-gray-600">执行结果</p>
             </div>
-            <CheckCircle className="h-6 w-6 text-green-500" />
+            <div className="flex items-center space-x-1">
+              <CheckCircle className="h-5 w-5 text-green-500" />
+              <div className="h-5 w-5 bg-red-500 rounded-full flex items-center justify-center">
+                <span className="text-white text-xs font-bold">✕</span>
+              </div>
+            </div>
+          </div>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-green-600">执行成功：</span>
+              <span className="text-lg font-bold text-green-700">{data.confirmedProposals}条</span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-medium text-red-600">执行失败：</span>
+              <span className="text-lg font-bold text-red-700">{data.failedProposals}条</span>
+            </div>
           </div>
         </div>
       </div>

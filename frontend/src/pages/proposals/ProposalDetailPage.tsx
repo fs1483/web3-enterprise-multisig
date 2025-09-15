@@ -69,13 +69,17 @@ export const ProposalDetailPage: React.FC = () => {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pending':
-        return 'text-yellow-600 bg-yellow-50 border-yellow-200';
+        return 'text-yellow-700 bg-yellow-100 border-yellow-300';
       case 'approved':
-        return 'text-green-600 bg-green-50 border-green-200';
+        return 'text-blue-700 bg-blue-100 border-blue-300';
       case 'executed':
-        return 'text-blue-600 bg-blue-50 border-blue-200';
+        return 'text-purple-700 bg-purple-100 border-purple-300';
+      case 'confirmed':
+        return 'text-green-700 bg-green-100 border-green-300';
+      case 'failed':
+        return 'text-red-700 bg-red-100 border-red-300';
       case 'rejected':
-        return 'text-red-600 bg-red-50 border-red-200';
+        return 'text-gray-700 bg-gray-100 border-gray-300';
       default:
         return 'text-gray-600 bg-gray-50 border-gray-200';
     }
@@ -86,12 +90,36 @@ export const ProposalDetailPage: React.FC = () => {
       case 'pending':
         return <Clock className="h-5 w-5" />;
       case 'approved':
-      case 'executed':
         return <CheckCircle className="h-5 w-5" />;
+      case 'executed':
+        return <Clock className="h-5 w-5" />;
+      case 'confirmed':
+        return <CheckCircle className="h-5 w-5" />;
+      case 'failed':
+        return <XCircle className="h-5 w-5" />;
       case 'rejected':
         return <XCircle className="h-5 w-5" />;
       default:
         return <Clock className="h-5 w-5" />;
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return '待签名';
+      case 'approved':
+        return '已批准';
+      case 'executed':
+        return '执行中';
+      case 'confirmed':
+        return '执行成功';
+      case 'failed':
+        return '执行失败';
+      case 'rejected':
+        return '已拒绝';
+      default:
+        return status;
     }
   };
 
@@ -321,9 +349,9 @@ export const ProposalDetailPage: React.FC = () => {
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <div className="flex items-center space-x-3 mb-4">
-                  <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border ${getStatusColor(proposal.status)}`}>
+                  <span className={`inline-flex items-center px-4 py-2 rounded-lg text-lg font-bold border-2 ${getStatusColor(proposal.status)}`}>
                     {getStatusIcon(proposal.status)}
-                    <span className="ml-2 capitalize">{proposal.status}</span>
+                    <span className="ml-2">{getStatusLabel(proposal.status)}</span>
                   </span>
                   <span className="text-sm text-gray-500">
                     Created {createdDate ? new Date(createdDate).toLocaleDateString() : 'Unknown'}
@@ -504,9 +532,9 @@ export const ProposalDetailPage: React.FC = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  <div className={`flex items-center space-x-2 p-3 rounded-lg border ${getStatusColor(proposal.status)}`}>
+                  <div className={`flex items-center space-x-3 p-4 rounded-lg border-2 ${getStatusColor(proposal.status)}`}>
                     {getStatusIcon(proposal.status)}
-                    <span className="font-medium capitalize">{proposal.status}</span>
+                    <span className="font-bold text-lg">{getStatusLabel(proposal.status)}</span>
                   </div>
                   
                   {proposal.status === 'pending' && currentSigs < requiredSigs && (

@@ -48,6 +48,9 @@ const NotificationCenter: React.FC = () => {
       navigate(`/proposals/${notification.data.proposal_id}`);
     } else if (notification.type === 'safe_created' && notification.data?.safe_id) {
       navigate(`/safes/${notification.data.safe_id}`);
+    } else if ((notification.type === 'proposal_execution_success' || notification.type === 'proposal_execution_failed') && notification.data?.proposal_id) {
+      // 对于执行结果通知，跳转到提案详情页
+      navigate(`/proposals/${notification.data.proposal_id}`);
     }
     
     setIsOpen(false);
@@ -62,6 +65,10 @@ const NotificationCenter: React.FC = () => {
         return '✍️';
       case 'proposal_executed':
         return '✅';
+      case 'proposal_execution_success':
+        return '🎉';
+      case 'proposal_execution_failed':
+        return '💥';
       case 'safe_created':
         return '🔐';
       case 'info':
@@ -88,6 +95,10 @@ const NotificationCenter: React.FC = () => {
         return `${baseStyle} border-green-500 hover:bg-green-100`;
       case 'proposal_executed':
         return `${baseStyle} border-purple-500 hover:bg-purple-100`;
+      case 'proposal_execution_success':
+        return `${baseStyle} border-green-500 hover:bg-green-100`;
+      case 'proposal_execution_failed':
+        return `${baseStyle} border-red-500 hover:bg-red-100`;
       case 'safe_created':
         return `${baseStyle} border-indigo-500 hover:bg-indigo-100`;
       case 'warning':

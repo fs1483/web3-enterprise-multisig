@@ -127,12 +127,24 @@ func CreateProposal(c *gin.Context) {
 	}
 
 	// 检查用户是否为 Safe 的所有者
-	userIDStr := userID.(uuid.UUID).String()
+	// 获取用户的钱包地址
+	var user models.User
+	if err := database.DB.First(&user, userID).Error; err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to fetch user information",
+			"code":  "USER_FETCH_ERROR",
+		})
+		return
+	}
+
 	isOwner := false
-	for _, owner := range safe.Owners {
-		if owner == userIDStr {
-			isOwner = true
-			break
+	if user.WalletAddress != nil {
+		// 检查用户钱包地址是否在Safe的owners中
+		for _, owner := range safe.Owners {
+			if owner == *user.WalletAddress {
+				isOwner = true
+				break
+			}
 		}
 	}
 

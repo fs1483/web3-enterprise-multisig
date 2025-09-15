@@ -31,7 +31,8 @@ type ProposalCenterCard struct {
 	PendingSignatures int `json:"pendingSignatures"` // 需要用户签名的提案数量
 	UrgentCount       int `json:"urgentCount"`       // 紧急提案数量（超过24小时）
 	TotalProposals    int `json:"totalProposals"`    // 用户相关的提案总数
-	ExecutedProposals int `json:"executedProposals"` // 已执行的提案数量
+	ConfirmedProposals int `json:"confirmedProposals"` // 执行成功的提案数量
+	FailedProposals   int `json:"failedProposals"`   // 执行失败的提案数量
 	ApprovalRate      int `json:"approvalRate"`      // 提案通过率（百分比）
 }
 
@@ -172,7 +173,8 @@ func getProposalCenterData(userUUID uuid.UUID) (*ProposalCenterCard, error) {
 
 	// 3. 查询用户相关的所有提案统计
 	var totalProposals int64
-	var executedProposals int64
+	var confirmedProposals int64
+	var failedProposals int64
 
 	// 用户参与的Safe的所有提案 - 包括用户创建的提案和用户参与的Safe中的提案
 	totalQuery := database.DB.Model(&models.Proposal{}).
@@ -191,28 +193,47 @@ func getProposalCenterData(userUUID uuid.UUID) (*ProposalCenterCard, error) {
 		return nil, fmt.Errorf("查询提案总数失败: %v", err)
 	}
 
-	// 已执行的提案数量 - 需要重新构建查询，避免WHERE条件叠加
-	executedQuery := database.DB.Model(&models.Proposal{}).
+	// 执行成功的提案数量 - 需要重新构建查询，避免WHERE条件叠加
+	confirmedQuery := database.DB.Model(&models.Proposal{}).
 		Joins("LEFT JOIN safes ON proposals.safe_id = safes.id").
-		Where("proposals.status = ?", "executed").
+		Where("proposals.status = ?", "confirmed").
 		Where("proposals.created_by = ?", userUUID)
 
-	// 如果用户有钱包地址，也查询用户作为owner的Safe中的已执行提案
+	// 如果用户有钱包地址，也查询用户作为owner的Safe中的执行成功提案
 	if user.WalletAddress != nil && *user.WalletAddress != "" {
-		executedQuery = executedQuery.Or("(proposals.status = ? AND safes.id IS NOT NULL AND ? = ANY(safes.owners))", "executed", *user.WalletAddress)
+		confirmedQuery = confirmedQuery.Or("(proposals.status = ? AND safes.id IS NOT NULL AND ? = ANY(safes.owners))", "confirmed", *user.WalletAddress)
 	} else {
-		// 如果用户没有钱包地址，也查询用户创建的Safe中的已执行提案
-		executedQuery = executedQuery.Or("(proposals.status = ? AND safes.created_by = ?)", "executed", userUUID)
+		// 如果用户没有钱包地址，也查询用户创建的Safe中的执行成功提案
+		confirmedQuery = confirmedQuery.Or("(proposals.status = ? AND safes.created_by = ?)", "confirmed", userUUID)
 	}
 
-	if err := executedQuery.Count(&executedProposals).Error; err != nil {
-		return nil, fmt.Errorf("查询已执行提案数失败: %v", err)
+	if err := confirmedQuery.Count(&confirmedProposals).Error; err != nil {
+		return nil, fmt.Errorf("查询执行成功提案数失败: %v", err)
 	}
 
-	// 4. 计算通过率
+	// 执行失败的提案数量
+	failedQuery := database.DB.Model(&models.Proposal{}).
+		Joins("LEFT JOIN safes ON proposals.safe_id = safes.id").
+		Where("proposals.status = ?", "failed").
+		Where("proposals.created_by = ?", userUUID)
+
+	// 如果用户有钱包地址，也查询用户作为owner的Safe中的执行失败提案
+	if user.WalletAddress != nil && *user.WalletAddress != "" {
+		failedQuery = failedQuery.Or("(proposals.status = ? AND safes.id IS NOT NULL AND ? = ANY(safes.owners))", "failed", *user.WalletAddress)
+	} else {
+		// 如果用户没有钱包地址，也查询用户创建的Safe中的执行失败提案
+		failedQuery = failedQuery.Or("(proposals.status = ? AND safes.created_by = ?)", "failed", userUUID)
+	}
+
+	if err := failedQuery.Count(&failedProposals).Error; err != nil {
+		return nil, fmt.Errorf("查询执行失败提案数失败: %v", err)
+	}
+
+	// 4. 计算通过率（基于已完成的提案：confirmed + failed）
 	approvalRate := 0
-	if totalProposals > 0 {
-		approvalRate = int((executedProposals * 100) / totalProposals)
+	completedProposals := confirmedProposals + failedProposals
+	if completedProposals > 0 {
+		approvalRate = int((confirmedProposals * 100) / completedProposals)
 	}
 
 	// 5. 构建返回数据
@@ -220,7 +241,8 @@ func getProposalCenterData(userUUID uuid.UUID) (*ProposalCenterCard, error) {
 		PendingSignatures: len(pendingProposals),
 		UrgentCount:       urgentCount,
 		TotalProposals:    int(totalProposals),
-		ExecutedProposals: int(executedProposals),
+		ConfirmedProposals: int(confirmedProposals),
+		FailedProposals:   int(failedProposals),
 		ApprovalRate:      approvalRate,
 	}
 

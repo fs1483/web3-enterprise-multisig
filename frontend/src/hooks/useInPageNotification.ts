@@ -62,6 +62,9 @@ export const useInPageNotification = () => {
         window.location.href = `/proposals/${currentNotification.data.proposal_id}`;
       } else if (currentNotification.type === 'safe_created' && currentNotification.data?.safe_id) {
         window.location.href = `/safes/${currentNotification.data.safe_id}`;
+      } else if ((currentNotification.type === 'proposal_execution_success' || currentNotification.type === 'proposal_execution_failed') && currentNotification.data?.proposal_id) {
+        // 对于执行结果通知，跳转到提案详情页
+        window.location.href = `/proposals/${currentNotification.data.proposal_id}`;
       }
     }
     

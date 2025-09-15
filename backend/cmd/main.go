@@ -71,14 +71,19 @@ func main() {
 			log.Println("💡 请检查区块链节点URL和API密钥是否正确")
 			log.Println("💡 系统将在没有区块链监听的情况下启动")
 		} else {
+			// 🔥 关键修复：设置监控器到workflow引擎，启用提案执行监控
+			workflow.SetSafeMonitor(monitor)
+			
 			// 启动区块链监听器
 			go func() {
-				log.Println("🔗 启动区块链监听器...")
+				log.Println("🔗 [Safe监控] 启动Safe创建监听器...")
+				log.Println("📋 [提案监控] 启动提案执行监控器...")
 				if err := monitor.Start(); err != nil {
 					log.Printf("❌ 区块链监听器启动失败: %v", err)
 				}
 			}()
-			log.Println("✅ 区块链监听器初始化成功")
+			log.Println("✅ Safe创建监听器初始化成功")
+			log.Println("✅ 提案执行监控器初始化成功")
 		}
 	}
 

@@ -4,9 +4,10 @@ import { useAuthStore } from './authStore';
 // Dashboard卡片数据接口定义
 export interface ProposalCenterCard {
   pendingSignatures: number;    // 需要用户签名的待处理提案数量
-  urgentProposals: number;      // 紧急提案数量（创建时间超过24小时）
+  urgentCount: number;          // 紧急提案数量（创建时间超过24小时）
   totalProposals: number;       // 用户相关的提案总数
-  executedProposals: number;    // 已执行的提案数量
+  confirmedProposals: number;   // 执行成功的提案数量
+  failedProposals: number;      // 执行失败的提案数量
   approvalRate: string;         // 提案通过率（百分比字符串）
 }
 
@@ -96,9 +97,10 @@ export const dashboardStore = create<DashboardState>((set) => ({
       const mockData: DashboardCardsData = {
         proposalCenter: {
           pendingSignatures: 3,
-          urgentProposals: 1,
+          urgentCount: 1,
           totalProposals: 15,
-          executedProposals: 12,
+          confirmedProposals: 12,
+          failedProposals: 2,
           approvalRate: "80.0"
         },
         assetOverview: {

@@ -4,7 +4,7 @@ import { persist } from 'zustand/middleware';
 // 通知类型定义
 export interface Notification {
   id: string;
-  type: 'new_proposal_created' | 'proposal_signed' | 'proposal_executed' | 'safe_created' | 'info' | 'warning' | 'error';
+  type: 'new_proposal_created' | 'proposal_signed' | 'proposal_executed' | 'proposal_execution_success' | 'proposal_execution_failed' | 'safe_created' | 'info' | 'warning' | 'error';
   title: string;
   message: string;
   data?: any;
@@ -215,6 +215,36 @@ export const useNotificationStore = create<NotificationStore>()(
                 get().showBrowserNotification(notification);
               }
               
+              // 处理提案执行成功通知
+              else if (message.type === 'proposal_execution_success') {
+                console.log('🎉 收到提案执行成功通知:', message.data);
+                const execData = message.data;
+                const notification = {
+                  type: 'proposal_execution_success' as const,
+                  title: '提案执行成功',
+                  message: `提案"${execData.proposal_title}"已在区块链上成功执行`,
+                  data: execData,
+                };
+                get().addNotification(notification);
+                get().showBrowserNotification(notification);
+                console.log('✅ 提案执行成功通知已添加到通知列表');
+              }
+              
+              // 处理提案执行失败通知
+              else if (message.type === 'proposal_execution_failed') {
+                console.log('❌ 收到提案执行失败通知:', message.data);
+                const execData = message.data;
+                const notification = {
+                  type: 'proposal_execution_failed' as const,
+                  title: '提案执行失败',
+                  message: `提案"${execData.proposal_title}"执行失败: ${execData.failure_reason || '未知原因'}`,
+                  data: execData,
+                };
+                get().addNotification(notification);
+                get().showBrowserNotification(notification);
+                console.log('⚠️ 提案执行失败通知已添加到通知列表');
+              }
+              
               // 处理Safe创建通知
               else if (message.type === 'safe_created') {
                 const safeData = message.data;
@@ -358,6 +388,9 @@ export const useNotificationStore = create<NotificationStore>()(
                 window.location.href = `/proposals/${notification.data.proposal_id}`;
               } else if (notification.type === 'safe_created' && notification.data?.safe_id) {
                 window.location.href = `/safes/${notification.data.safe_id}`;
+              } else if ((notification.type === 'proposal_execution_success' || notification.type === 'proposal_execution_failed') && notification.data?.proposal_id) {
+                // 对于执行结果通知，跳转到提案详情页
+                window.location.href = `/proposals/${notification.data.proposal_id}`;
               }
               
               browserNotification.close();

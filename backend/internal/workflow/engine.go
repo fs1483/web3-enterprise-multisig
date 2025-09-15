@@ -127,7 +127,7 @@ func ApproveProposal(proposalID uuid.UUID, userID uuid.UUID, signatureData strin
 // ExecuteProposal 执行提案
 func ExecuteProposal(proposalID uuid.UUID) error {
 	var proposal models.Proposal
-	if err := database.DB.First(&proposal, proposalID).Error; err != nil {
+	if err := database.DB.Preload("Safe").First(&proposal, proposalID).Error; err != nil {
 		return err
 	}
 
@@ -176,6 +176,26 @@ func ExecuteProposal(proposalID uuid.UUID) error {
 	if err := executor.ExecuteProposal(proposalID); err != nil {
 		log.Printf("Failed to execute proposal on blockchain: %v", err)
 		return fmt.Errorf("failed to execute proposal on blockchain: %v", err)
+	}
+
+	// 🔥 关键修复：获取交易哈希并添加到提案执行监控
+	// 重新查询提案以获取更新后的交易哈希
+	var updatedProposal models.Proposal
+	if err := database.DB.First(&updatedProposal, proposalID).Error; err != nil {
+		log.Printf("⚠️ 无法获取更新后的提案信息: %v", err)
+	} else if updatedProposal.TxHash != nil && *updatedProposal.TxHash != "" {
+		// 获取监控器实例并添加提案执行监控
+		monitor := getSafeMonitor()
+		if monitor != nil {
+			log.Printf("📋 [工作流] 添加提案执行监控: 提案ID=%s, 交易哈希=%s, Safe地址=%s", 
+				proposalID.String(), *updatedProposal.TxHash, proposal.Safe.Address)
+			
+			monitor.AddProposalExecution(proposalID, *updatedProposal.TxHash, proposal.Safe.Address)
+		} else {
+			log.Printf("⚠️ [工作流] Safe监控器未初始化，跳过提案执行监控")
+		}
+	} else {
+		log.Printf("⚠️ [工作流] 提案执行后未找到交易哈希，跳过监控")
 	}
 
 	log.Printf("Proposal %s executed successfully on blockchain", proposalID)
@@ -298,10 +318,19 @@ func handleOfflineOwnerNotifications(proposal *models.Proposal) error {
 // 全局WebSocket Hub实例
 var globalWebSocketHub *websocket.Hub
 
+// 全局监控器实例
+var globalSafeMonitor *blockchain.SafeCreationMonitor
+
 // SetWebSocketHub 设置全局WebSocket Hub实例
 func SetWebSocketHub(hub *websocket.Hub) {
 	globalWebSocketHub = hub
 	log.Printf("✅ WebSocket Hub已设置到workflow引擎")
+}
+
+// SetSafeMonitor 设置全局Safe监控器实例
+func SetSafeMonitor(monitor *blockchain.SafeCreationMonitor) {
+	globalSafeMonitor = monitor
+	log.Printf("✅ Safe监控器已设置到workflow引擎")
 }
 
 // getWebSocketHub 获取WebSocket Hub实例
@@ -311,6 +340,15 @@ func getWebSocketHub() *websocket.Hub {
 		return nil
 	}
 	return globalWebSocketHub
+}
+
+// getSafeMonitor 获取Safe监控器实例
+func getSafeMonitor() *blockchain.SafeCreationMonitor {
+	if globalSafeMonitor == nil {
+		log.Printf("⚠️ Safe监控器未设置，无法监控提案执行")
+		return nil
+	}
+	return globalSafeMonitor
 }
 
 // getNextActions 获取下一步可执行的操作

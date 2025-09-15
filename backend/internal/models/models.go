@@ -46,7 +46,7 @@ type Proposal struct {
 	CurrentSignatures  int `json:"current_signatures" gorm:"default:0"`
 
 	// 状态管理
-	Status string `json:"status" gorm:"size:20;not null;default:pending;check:status IN ('pending','approved','executed','rejected')"`
+	Status string `json:"status" gorm:"size:20;not null;default:pending;check:status IN ('pending','approved','executed','confirmed','failed','rejected')"`
 
 	// 区块链执行信息
 	TxHash      *string `json:"tx_hash" gorm:"size:66"` // 区块链交易哈希
@@ -54,10 +54,15 @@ type Proposal struct {
 	GasUsed     *int64  `json:"gas_used"`               // 消耗的Gas
 
 	// 时间戳
-	CreatedAt  time.Time  `json:"created_at" gorm:"default:now()"`
-	ApprovedAt *time.Time `json:"approved_at"` // 获得足够签名的时间
-	ExecutedAt *time.Time `json:"executed_at"` // 区块链执行时间
-	UpdatedAt  time.Time  `json:"updated_at" gorm:"default:now()"`
+	CreatedAt   time.Time  `json:"created_at" gorm:"default:now()"`
+	ApprovedAt  *time.Time `json:"approved_at"`  // 获得足够签名的时间
+	ExecutedAt  *time.Time `json:"executed_at"`  // 区块链执行时间
+	ConfirmedAt *time.Time `json:"confirmed_at"` // 区块链确认成功时间
+	FailedAt    *time.Time `json:"failed_at"`    // 区块链执行失败时间
+	UpdatedAt   time.Time  `json:"updated_at" gorm:"default:now()"`
+
+	// 失败信息
+	FailureReason *string `json:"failure_reason" gorm:"type:text"` // 失败原因描述
 
 	// 审计字段
 	Nonce      *int64  `json:"nonce"`                       // Safe nonce (签名时使用的nonce)

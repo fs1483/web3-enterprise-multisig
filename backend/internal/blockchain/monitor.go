@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"sync"
 	"time"
 
 	"github.com/ethereum/go-ethereum"
@@ -18,8 +19,18 @@ import (
 	"web3-enterprise-multisig/internal/websocket"
 )
 
+// PendingProposal 待监控的提案执行
+type PendingProposal struct {
+	ProposalID  uuid.UUID `json:"proposal_id"`
+	TxHash      string    `json:"tx_hash"`
+	SafeAddress string    `json:"safe_address"`
+	SubmitTime  time.Time `json:"submit_time"`
+	RetryCount  int       `json:"retry_count"`
+}
+
 // SafeCreationMonitor 企业级Safe创建监听器
 // 负责监听区块链上的Safe创建事件，并更新数据库状态
+// 同时监控提案执行状态
 type SafeCreationMonitor struct {
 	// 区块链客户端连接
 	ethClient *ethclient.Client
@@ -36,6 +47,10 @@ type SafeCreationMonitor struct {
 	// 控制通道
 	ctx    context.Context
 	cancel context.CancelFunc
+
+	// 提案执行监控
+	pendingProposals map[string]*PendingProposal // key: txHash
+	proposalMutex    sync.RWMutex                // 并发安全锁
 }
 
 // MonitorConfig 监听器配置
@@ -97,6 +112,7 @@ func NewSafeCreationMonitor(
 		config:                 config,
 		ctx:                    ctx,
 		cancel:                 cancel,
+		pendingProposals:       make(map[string]*PendingProposal),
 	}, nil
 }
 
@@ -114,7 +130,14 @@ func (m *SafeCreationMonitor) Start() error {
 	// 启动轮询检查（备用机制，防止事件遗漏）
 	go m.startPollingChecker()
 
+	// 恢复历史待监控的提案
+	go m.recoverPendingProposals()
+
+	// 启动提案执行监控
+	go m.startProposalExecutionMonitor()
+
 	log.Printf("✅ Safe创建监听服务已启动 (链ID: %d)", m.config.ChainID)
+	log.Printf("✅ 提案执行监控服务已启动")
 	return nil
 }
 
@@ -667,4 +690,487 @@ func getStatusProgress(status string) int {
 	default:
 		return 0
 	}
+}
+
+// ==================== 提案执行监控功能 ====================
+
+// AddProposalExecution 添加提案执行到监控队列
+func (m *SafeCreationMonitor) AddProposalExecution(proposalID uuid.UUID, txHash string, safeAddress string) {
+	m.proposalMutex.Lock()
+	defer m.proposalMutex.Unlock()
+
+	pending := &PendingProposal{
+		ProposalID:  proposalID,
+		TxHash:      txHash,
+		SubmitTime:  time.Now(),
+		RetryCount:  0,
+		SafeAddress: safeAddress,
+	}
+
+	m.pendingProposals[txHash] = pending
+	log.Printf("📋 添加提案执行监控: 提案ID=%s, 交易哈希=%s, Safe地址=%s", 
+		proposalID.String(), txHash, safeAddress)
+}
+
+// recoverPendingProposals 从数据库恢复待监控的历史提案
+func (m *SafeCreationMonitor) recoverPendingProposals() {
+	log.Println("🔄 [提案监控] 开始恢复历史待监控提案...")
+
+	// 查询状态为"executed"且有交易哈希的提案，预加载Safe关联数据
+	var proposals []models.Proposal
+	result := m.db.Preload("Safe").Where("status = ? AND tx_hash IS NOT NULL AND tx_hash != ''", "executed").Find(&proposals)
+	
+	log.Printf("📋 [提案监控] 数据库查询结果: 找到 %d 条executed状态且有tx_hash的提案", len(proposals))
+	
+	// 如果查询结果为0，检查是否有executed状态的提案
+	if len(proposals) == 0 {
+		var allExecuted []models.Proposal
+		m.db.Where("status = ?", "executed").Find(&allExecuted)
+		log.Printf("🔍 [提案监控] 调试信息: 总共有 %d 条executed状态的提案", len(allExecuted))
+		
+		if len(allExecuted) > 0 {
+			// 检查第一条记录的tx_hash情况
+			var firstProposal models.Proposal
+			m.db.Where("status = ?", "executed").First(&firstProposal)
+			if firstProposal.TxHash == nil {
+				log.Printf("🔍 [提案监控] 调试信息: tx_hash字段为NULL")
+			} else {
+				log.Printf("🔍 [提案监控] 调试信息: tx_hash字段值='%s'", *firstProposal.TxHash)
+			}
+		}
+	}
+	
+	if result.Error != nil {
+		log.Printf("❌ [提案监控] 查询历史提案失败: %v", result.Error)
+		return
+	}
+
+	if len(proposals) == 0 {
+		log.Println("📋 [提案监控] 没有需要恢复的历史提案")
+		return
+	}
+
+	log.Printf("📋 [提案监控] 发现 %d 个需要恢复监控的历史提案", len(proposals))
+
+	// 为每个提案检查交易状态并添加到监控队列
+	for i, proposal := range proposals {
+		log.Printf("📋 [提案监控] 处理提案 %d: ID=%s, SafeID=%s, TxHash=%v", 
+			i+1, proposal.ID.String(), proposal.SafeID.String(), proposal.TxHash)
+		
+		if proposal.TxHash == nil || *proposal.TxHash == "" {
+			log.Printf("⚠️ [提案监控] 提案 %s 没有交易哈希，跳过监控", proposal.ID.String())
+			continue
+		}
+		
+		// 检查Safe关联数据是否存在
+		log.Printf("📋 [提案监控] Safe关联数据: Address='%s', ID=%s", 
+			proposal.Safe.Address, proposal.Safe.ID.String())
+		
+		if proposal.Safe.Address == "" {
+			log.Printf("⚠️ [提案监控] 提案 %s 缺少Safe地址信息，跳过监控", proposal.ID.String())
+			continue
+		}
+
+		// 先检查交易是否已经确认
+		txHash := common.HexToHash(*proposal.TxHash)
+		receipt, err := m.ethClient.TransactionReceipt(context.Background(), txHash)
+		
+		if err != nil {
+			// 交易还未确认，添加到监控队列
+			log.Printf("📋 [提案监控] 恢复监控提案: ID=%s, TxHash=%s (交易未确认)", 
+				proposal.ID.String(), *proposal.TxHash)
+			
+			m.proposalMutex.Lock()
+			m.pendingProposals[*proposal.TxHash] = &PendingProposal{
+				ProposalID:  proposal.ID,
+				TxHash:      *proposal.TxHash,
+				SubmitTime:  proposal.UpdatedAt, // 使用更新时间作为提交时间
+				RetryCount:  0,
+				SafeAddress: proposal.Safe.Address,
+			}
+			m.proposalMutex.Unlock()
+			continue
+		}
+
+		// 交易已确认，检查当前区块高度和确认数
+		currentBlock, err := m.ethClient.BlockNumber(context.Background())
+		if err != nil {
+			log.Printf("❌ [提案监控] 获取当前区块高度失败: %v", err)
+			continue
+		}
+
+		confirmations := currentBlock - receipt.BlockNumber.Uint64()
+		
+		if confirmations < uint64(m.config.ConfirmationBlocks) {
+			// 确认数不足，添加到监控队列
+			log.Printf("📋 [提案监控] 恢复监控提案: ID=%s, TxHash=%s (确认数不足: %d/%d)", 
+				proposal.ID.String(), *proposal.TxHash, confirmations, m.config.ConfirmationBlocks)
+			
+			m.proposalMutex.Lock()
+			m.pendingProposals[*proposal.TxHash] = &PendingProposal{
+				ProposalID:  proposal.ID,
+				TxHash:      *proposal.TxHash,
+				SubmitTime:  proposal.UpdatedAt,
+				RetryCount:  0,
+				SafeAddress: proposal.Safe.Address,
+			}
+			m.proposalMutex.Unlock()
+		} else {
+			// 确认数足够，直接更新最终状态
+			pendingProposal := &PendingProposal{
+				ProposalID:  proposal.ID,
+				TxHash:      *proposal.TxHash,
+				SubmitTime:  proposal.UpdatedAt,
+				RetryCount:  0,
+				SafeAddress: proposal.Safe.Address,
+			}
+			
+			if receipt.Status == 1 {
+				log.Printf("✅ [提案监控] 历史提案已确认成功: ID=%s, TxHash=%s", 
+					proposal.ID.String(), *proposal.TxHash)
+				m.markProposalAsConfirmed(pendingProposal, receipt)
+			} else {
+				log.Printf("❌ [提案监控] 历史提案执行失败: ID=%s, TxHash=%s", 
+					proposal.ID.String(), *proposal.TxHash)
+				m.markProposalAsFailed(pendingProposal, "交易执行失败")
+			}
+		}
+	}
+
+	log.Printf("✅ [提案监控] 历史提案恢复完成，当前监控队列: %d 个提案", len(m.pendingProposals))
+}
+
+// startProposalExecutionMonitor 启动提案执行监控器
+func (m *SafeCreationMonitor) startProposalExecutionMonitor() {
+	log.Println("📋 [提案监控] 启动提案执行监控器...")
+
+	ticker := time.NewTicker(m.config.PollInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-m.ctx.Done():
+			log.Println("📋 [提案监控] 提案执行监控器已停止")
+			return
+		case <-ticker.C:
+			m.checkPendingProposals()
+		}
+	}
+}
+
+// checkPendingProposals 检查所有待处理的提案执行
+func (m *SafeCreationMonitor) checkPendingProposals() {
+	m.proposalMutex.RLock()
+	pendingCount := len(m.pendingProposals)
+	m.proposalMutex.RUnlock()
+
+	if pendingCount == 0 {
+		return
+	}
+
+	log.Printf("📋 [提案监控] 检查 %d 个待处理的提案执行", pendingCount)
+
+	// 创建副本以避免长时间持有锁
+	m.proposalMutex.RLock()
+	pendingCopy := make(map[string]*PendingProposal)
+	for k, v := range m.pendingProposals {
+		pendingCopy[k] = v
+	}
+	m.proposalMutex.RUnlock()
+
+	// 检查每个待处理的提案
+	for _, pending := range pendingCopy {
+		m.checkProposalTransaction(pending)
+	}
+}
+
+// checkProposalTransaction 检查单个提案执行交易状态
+func (m *SafeCreationMonitor) checkProposalTransaction(pending *PendingProposal) {
+	txHash := common.HexToHash(pending.TxHash)
+	
+	log.Printf("📋 [提案监控] 检查提案执行: 提案ID=%s, 交易哈希=%s", 
+		pending.ProposalID.String(), pending.TxHash)
+	
+	receipt, err := m.ethClient.TransactionReceipt(m.ctx, txHash)
+	if err != nil {
+		// 检查是否超时
+		if time.Since(pending.SubmitTime) > 10*time.Minute {
+			log.Printf("❌ [提案监控] 交易超时未确认: %s", pending.TxHash)
+			m.markProposalAsFailed(pending, "交易超时未确认")
+		} else {
+			log.Printf("⏳ [提案监控] 交易尚未被挖矿: %s", pending.TxHash)
+		}
+		return
+	}
+
+	log.Printf("📄 [提案监控] 获取交易收据成功: TxHash=%s, BlockNumber=%d, Status=%d",
+		pending.TxHash, receipt.BlockNumber.Uint64(), receipt.Status)
+
+	// 检查确认区块数
+	currentBlock, err := m.ethClient.BlockNumber(m.ctx)
+	if err != nil {
+		log.Printf("❌ 获取当前区块号失败: %v", err)
+		return
+	}
+
+	confirmations := int64(currentBlock) - receipt.BlockNumber.Int64()
+	log.Printf("📋 [提案监控] 确认区块数: %d/%d", confirmations, m.config.ConfirmationBlocks)
+
+	if confirmations < m.config.ConfirmationBlocks {
+		log.Printf("⏳ [提案监控] 等待更多确认: %d/%d", confirmations, m.config.ConfirmationBlocks)
+		return
+	}
+
+	// 根据交易状态更新提案
+	if receipt.Status == 1 {
+		log.Printf("✅ [提案监控] 交易执行成功: %s", pending.TxHash)
+		m.markProposalAsConfirmed(pending, receipt)
+	} else {
+		log.Printf("❌ [提案监控] 交易执行失败: %s", pending.TxHash)
+		m.markProposalAsFailed(pending, "交易执行失败")
+	}
+}
+
+// markProposalAsConfirmed 标记提案为已确认
+func (m *SafeCreationMonitor) markProposalAsConfirmed(pending *PendingProposal, receipt *types.Receipt) {
+	now := time.Now()
+	blockNumber := receipt.BlockNumber.Int64()
+	
+	// 更新数据库中的提案状态
+	result := m.db.Model(&models.Proposal{}).
+		Where("id = ?", pending.ProposalID).
+		Updates(map[string]interface{}{
+			"status":         "confirmed",
+			"confirmed_at":   &now,
+			"tx_hash":        pending.TxHash,
+			"block_number":   &blockNumber,
+			"gas_used":       &receipt.GasUsed,
+			"updated_at":     now,
+		})
+
+	if result.Error != nil {
+		log.Printf("❌ 更新提案状态失败: %v", result.Error)
+		return
+	}
+
+	log.Printf("✅ 提案执行成功: 提案ID=%s, 交易哈希=%s, 区块=%d", 
+		pending.ProposalID.String(), pending.TxHash, blockNumber)
+
+	// 发送WebSocket通知给Safe owners
+	m.notifyProposalExecutionResult(pending.ProposalID, "confirmed", pending.SafeAddress, pending.TxHash, nil)
+
+	// 从监控队列中移除
+	m.proposalMutex.Lock()
+	delete(m.pendingProposals, pending.TxHash)
+	m.proposalMutex.Unlock()
+}
+
+// markProposalAsFailed 标记提案为执行失败
+func (m *SafeCreationMonitor) markProposalAsFailed(pending *PendingProposal, reason string) {
+	now := time.Now()
+	
+	// 更新数据库中的提案状态
+	result := m.db.Model(&models.Proposal{}).
+		Where("id = ?", pending.ProposalID).
+		Updates(map[string]interface{}{
+			"status":         "failed",
+			"failure_reason": reason,
+			"updated_at":     now,
+		})
+
+	if result.Error != nil {
+		log.Printf("❌ 更新提案状态失败: %v", result.Error)
+		return
+	}
+
+	log.Printf("❌ 提案执行失败: 提案ID=%s, 交易哈希=%s, 原因=%s", 
+		pending.ProposalID.String(), pending.TxHash, reason)
+
+	// 发送WebSocket通知给Safe owners
+	m.notifyProposalExecutionResult(pending.ProposalID, "failed", pending.SafeAddress, pending.TxHash, &reason)
+
+	// 从监控队列中移除
+	m.proposalMutex.Lock()
+	delete(m.pendingProposals, pending.TxHash)
+	m.proposalMutex.Unlock()
+}
+
+// sendProposalConfirmedNotification 发送提案确认通知
+func (m *SafeCreationMonitor) sendProposalConfirmedNotification(pending *PendingProposal, receipt *types.Receipt) {
+	if m.wsHub == nil {
+		log.Printf("⚠️ WebSocket Hub未初始化，跳过提案确认通知发送")
+		return
+	}
+
+	// 获取提案详情以获取相关用户
+	var proposal models.Proposal
+	if err := m.db.Preload("Safe").First(&proposal, pending.ProposalID).Error; err != nil {
+		log.Printf("❌ 获取提案详情失败，无法发送通知: %v", err)
+		return
+	}
+
+	// 构建通知消息
+	notificationData := map[string]interface{}{
+		"proposal_id":     pending.ProposalID.String(),
+		"tx_hash":         pending.TxHash,
+		"safe_address":    pending.SafeAddress,
+		"block_number":    receipt.BlockNumber.Int64(),
+		"gas_used":        receipt.GasUsed,
+		"status":          "executed",
+		"timestamp":       time.Now().Unix(),
+		"proposal_title":  proposal.Title,
+		"safe_name":       proposal.Safe.Name,
+	}
+
+	message := websocket.WebSocketMessage{
+		Type:      "proposal_execution_confirmed",
+		Data:      notificationData,
+		Timestamp: time.Now().Unix(),
+	}
+
+	// 通知Safe的所有所有者
+	for _, ownerAddress := range proposal.Safe.Owners {
+		var ownerUser models.User
+		if err := m.db.Where("wallet_address = ?", ownerAddress).First(&ownerUser).Error; err != nil {
+			log.Printf("⚠️ 未找到钱包地址对应的用户: %s", ownerAddress)
+			continue
+		}
+		m.wsHub.SendToUser(ownerUser.ID, message)
+	}
+
+	log.Printf("📡 已发送提案执行确认通知: 提案ID=%s, 交易哈希=%s", 
+		pending.ProposalID.String(), pending.TxHash)
+}
+
+// sendProposalFailedNotification 发送提案失败通知
+func (m *SafeCreationMonitor) sendProposalFailedNotification(pending *PendingProposal, reason string) {
+	if m.wsHub == nil {
+		log.Printf("⚠️ WebSocket Hub未初始化，跳过提案失败通知发送")
+		return
+	}
+
+	// 获取提案详情以获取相关用户
+	var proposal models.Proposal
+	if err := m.db.Preload("Safe").First(&proposal, pending.ProposalID).Error; err != nil {
+		log.Printf("❌ 获取提案详情失败，无法发送通知: %v", err)
+		return
+	}
+
+	// 构建通知消息
+	notificationData := map[string]interface{}{
+		"proposal_id":     pending.ProposalID.String(),
+		"tx_hash":         pending.TxHash,
+		"safe_address":    pending.SafeAddress,
+		"status":          "failed",
+		"failure_reason":  reason,
+		"timestamp":       time.Now().Unix(),
+		"proposal_title":  proposal.Title,
+		"safe_name":       proposal.Safe.Name,
+	}
+
+	message := websocket.WebSocketMessage{
+		Type:      "proposal_execution_failed",
+		Data:      notificationData,
+		Timestamp: time.Now().Unix(),
+	}
+
+	// 通知Safe的所有所有者
+	for _, ownerAddress := range proposal.Safe.Owners {
+		var ownerUser models.User
+		if err := m.db.Where("wallet_address = ?", ownerAddress).First(&ownerUser).Error; err != nil {
+			log.Printf("⚠️ 未找到钱包地址对应的用户: %s", ownerAddress)
+			continue
+		}
+		m.wsHub.SendToUser(ownerUser.ID, message)
+	}
+
+	log.Printf("📡 已发送提案执行失败通知: 提案ID=%s, 交易哈希=%s, 原因=%s", 
+		pending.ProposalID.String(), pending.TxHash, reason)
+}
+
+// notifyProposalExecutionResult 统一的提案执行结果通知方法
+func (m *SafeCreationMonitor) notifyProposalExecutionResult(proposalID uuid.UUID, status, safeAddress, txHash string, failureReason *string) {
+	if m.wsHub == nil {
+		log.Printf("⚠️ WebSocket Hub 未初始化，无法发送通知")
+		return
+	}
+
+	// 获取提案详情
+	var proposal models.Proposal
+	if err := m.db.Where("id = ?", proposalID).First(&proposal).Error; err != nil {
+		log.Printf("❌ 获取提案详情失败: %v", err)
+		return
+	}
+
+	// 获取Safe的所有owners
+	var safe models.Safe
+	if err := m.db.Where("address = ?", safeAddress).First(&safe).Error; err != nil {
+		log.Printf("❌ 获取Safe详情失败: %v", err)
+		return
+	}
+
+	// Safe的owners存储在Owners字段中，是一个字符串数组
+	owners := safe.Owners
+
+	// 构造通知消息
+	var message map[string]interface{}
+	if status == "confirmed" {
+		message = map[string]interface{}{
+			"type":        "proposal_execution_success",
+			"proposal_id": proposalID,
+			"title":       "提案执行成功",
+			"message":     fmt.Sprintf("提案\"%s\"已在区块链上成功执行", proposal.Title),
+			"data": map[string]interface{}{
+				"proposal_id":   proposalID,
+				"proposal_title": proposal.Title,
+				"safe_address":  safeAddress,
+				"tx_hash":       txHash,
+				"status":        status,
+			},
+			"timestamp": time.Now(),
+		}
+	} else {
+		reasonText := "未知原因"
+		if failureReason != nil {
+			reasonText = *failureReason
+		}
+		message = map[string]interface{}{
+			"type":        "proposal_execution_failed",
+			"proposal_id": proposalID,
+			"title":       "提案执行失败",
+			"message":     fmt.Sprintf("提案\"%s\"执行失败: %s", proposal.Title, reasonText),
+			"data": map[string]interface{}{
+				"proposal_id":     proposalID,
+				"proposal_title":  proposal.Title,
+				"safe_address":    safeAddress,
+				"tx_hash":         txHash,
+				"status":          status,
+				"failure_reason":  reasonText,
+			},
+			"timestamp": time.Now(),
+		}
+	}
+
+	// 构造WebSocket消息
+	wsMessage := websocket.WebSocketMessage{
+		Type:      message["type"].(string),
+		Data:      message,
+		Timestamp: time.Now().Unix(),
+	}
+
+	// 发送给所有Safe owners
+	for _, ownerAddress := range owners {
+		var ownerUser models.User
+		if err := m.db.Where("wallet_address = ?", ownerAddress).First(&ownerUser).Error; err != nil {
+			log.Printf("⚠️ 未找到钱包地址对应的用户: %s", ownerAddress)
+			continue
+		}
+		m.wsHub.SendToUser(ownerUser.ID, wsMessage)
+	}
+
+	// 保存到通知中心 (暂时注释，后续实现)
+	// m.saveExecutionNotificationToCenter(proposalID, status, safeAddress, txHash, failureReason, owners)
+
+	log.Printf("📡 已发送提案执行结果通知: 提案ID=%s, 状态=%s, 交易哈希=%s", 
+		proposalID.String(), status, txHash)
 }

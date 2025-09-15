@@ -20,13 +20,17 @@ export const ProposalCard: React.FC<ProposalCardProps> = ({
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'pending':
-        return 'text-yellow-600 bg-yellow-50 border-yellow-200';
+        return 'text-yellow-700 bg-yellow-100 border-yellow-300';
       case 'approved':
-        return 'text-green-600 bg-green-50 border-green-200';
+        return 'text-blue-700 bg-blue-100 border-blue-300';
       case 'executed':
-        return 'text-blue-600 bg-blue-50 border-blue-200';
+        return 'text-purple-700 bg-purple-100 border-purple-300';
+      case 'confirmed':
+        return 'text-green-700 bg-green-100 border-green-300';
+      case 'failed':
+        return 'text-red-700 bg-red-100 border-red-300';
       case 'rejected':
-        return 'text-red-600 bg-red-50 border-red-200';
+        return 'text-gray-700 bg-gray-100 border-gray-300';
       default:
         return 'text-gray-600 bg-gray-50 border-gray-200';
     }
@@ -37,12 +41,36 @@ export const ProposalCard: React.FC<ProposalCardProps> = ({
       case 'pending':
         return <Clock className="h-4 w-4" />;
       case 'approved':
-      case 'executed':
         return <CheckCircle className="h-4 w-4" />;
+      case 'executed':
+        return <Clock className="h-4 w-4" />;
+      case 'confirmed':
+        return <CheckCircle className="h-4 w-4" />;
+      case 'failed':
+        return <XCircle className="h-4 w-4" />;
       case 'rejected':
         return <XCircle className="h-4 w-4" />;
       default:
         return <Clock className="h-4 w-4" />;
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return '待签名';
+      case 'approved':
+        return '已批准';
+      case 'executed':
+        return '执行中';
+      case 'confirmed':
+        return '执行成功';
+      case 'failed':
+        return '执行失败';
+      case 'rejected':
+        return '已拒绝';
+      default:
+        return status;
     }
   };
 
@@ -87,9 +115,9 @@ export const ProposalCard: React.FC<ProposalCardProps> = ({
         <div className="flex items-start justify-between">
           <div className="flex-1 min-w-0">
             <div className="flex items-center space-x-2 mb-2">
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(proposal.status)}`}>
+              <span className={`inline-flex items-center px-3 py-1.5 rounded-lg text-sm font-semibold border-2 ${getStatusColor(proposal.status)}`}>
                 {getStatusIcon(proposal.status)}
-                <span className="ml-1 capitalize">{proposal.status}</span>
+                <span className="ml-1.5">{getStatusLabel(proposal.status)}</span>
               </span>
               <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
                 {getTypeLabel(proposalType)}
