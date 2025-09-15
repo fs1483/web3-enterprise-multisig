@@ -39,9 +39,9 @@ func ExecuteProposalByID(c *gin.Context) {
 	// 检查提案是否可以执行
 	if !proposal.CanExecute() {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": fmt.Sprintf("Proposal cannot be executed. Status: %s, Signatures: %d/%d", 
+			"error": fmt.Sprintf("Proposal cannot be executed. Status: %s, Signatures: %d/%d",
 				proposal.Status, proposal.CurrentSignatures, proposal.RequiredSignatures),
-			"code":  "PROPOSAL_NOT_EXECUTABLE",
+			"code": "PROPOSAL_NOT_EXECUTABLE",
 		})
 		return
 	}

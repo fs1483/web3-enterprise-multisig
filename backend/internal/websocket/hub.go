@@ -181,6 +181,8 @@ func (h *Hub) SendToUser(userID uuid.UUID, message WebSocketMessage) {
 	clients := h.userClients[userID]
 	h.mutex.RUnlock()
 
+	log.Printf("🔍 尝试向用户 %s 发送消息，活跃连接数: %d", userID.String(), len(clients))
+
 	if len(clients) == 0 {
 		log.Printf("⚠️ 用户 %s 没有活跃的WebSocket连接", userID.String())
 		return
@@ -192,11 +194,15 @@ func (h *Hub) SendToUser(userID uuid.UUID, message WebSocketMessage) {
 		return
 	}
 
+	log.Printf("📡 发送消息内容: %s", string(messageBytes))
+
+	sentCount := 0
 	for _, client := range clients {
 		select {
 		case client.send <- messageBytes:
+			sentCount++
+			log.Printf("✅ 消息已发送到客户端连接")
 		default:
-			// 客户端发送缓冲区满，跳过
 			log.Printf("⚠️ 用户 %s 的WebSocket发送缓冲区满", userID.String())
 		}
 	}

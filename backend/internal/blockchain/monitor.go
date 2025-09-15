@@ -149,7 +149,7 @@ func (m *SafeCreationMonitor) startEventListener() {
 		},
 		// 不设置FromBlock和ToBlock，监听最新事件
 	}
-	
+
 	log.Printf("🔍 WebSocket事件过滤器配置:")
 	log.Printf("🔍 - Factory地址: %s", factoryAddress.Hex())
 	log.Printf("🔍 - 事件签名: 0x4f51faf6c4561ff95f067657e43439f0f856d97c04d9ec9070a6199ad418e235")
@@ -271,7 +271,7 @@ func (m *SafeCreationMonitor) handleSafeCreationEvent(vLog types.Log) error {
 		log.Printf("❌ [WebSocket] Data长度不足，无法提取Safe地址: %d", len(vLog.Data))
 		return fmt.Errorf("Data长度不足: %d", len(vLog.Data))
 	}
-	
+
 	txHash := vLog.TxHash.Hex()
 	log.Printf("🔍 WebSocket处理Safe创建事件: Safe地址=%s, 交易哈希=%s", safeAddress.Hex(), txHash)
 
@@ -303,7 +303,7 @@ func (m *SafeCreationMonitor) handleSafeCreationEvent(vLog types.Log) error {
 		return fmt.Errorf("获取交易收据失败: %w", err)
 	}
 
-	log.Printf("📄 WebSocket获取交易收据成功: BlockNumber=%d, GasUsed=%d", 
+	log.Printf("📄 WebSocket获取交易收据成功: BlockNumber=%d, GasUsed=%d",
 		vLog.BlockNumber, receipt.GasUsed)
 
 	// 更新数据库中的交易状态
@@ -368,9 +368,9 @@ func (m *SafeCreationMonitor) checkTransactionStatus(tx *models.SafeTransaction)
 		return fmt.Errorf("获取交易收据失败: %w", err)
 	}
 
-	log.Printf("📄 轮询获取交易收据成功: TxHash=%s, BlockNumber=%d, Status=%d", 
+	log.Printf("📄 轮询获取交易收据成功: TxHash=%s, BlockNumber=%d, Status=%d",
 		tx.TxHash, receipt.BlockNumber.Uint64(), receipt.Status)
-	
+
 	// ========== 详细打印交易收据结构 ==========
 	log.Printf("🔍 [轮询] 交易收据详细信息:")
 	log.Printf("🔍 [轮询] - TxHash: %s", receipt.TxHash.Hex())
@@ -381,7 +381,7 @@ func (m *SafeCreationMonitor) checkTransactionStatus(tx *models.SafeTransaction)
 	log.Printf("🔍 [轮询] - GasUsed: %d", receipt.GasUsed)
 	log.Printf("🔍 [轮询] - Status: %d", receipt.Status)
 	log.Printf("🔍 [轮询] - Logs数量: %d", len(receipt.Logs))
-	
+
 	// 打印所有事件日志
 	for i, eventLog := range receipt.Logs {
 		log.Printf("🔍 [轮询] - Log[%d] Address: %s", i, eventLog.Address.Hex())
@@ -444,35 +444,35 @@ func (m *SafeCreationMonitor) extractSafeAddressFromReceipt(receipt *types.Recei
 	log.Printf("🔍 期望的事件签名: %s", proxyCreationTopic.Hex())
 
 	for i, eventLog := range receipt.Logs {
-		log.Printf("🔍 检查事件日志 %d: 合约地址=%s, Topics数量=%d", 
+		log.Printf("🔍 检查事件日志 %d: 合约地址=%s, Topics数量=%d",
 			i, eventLog.Address.Hex(), len(eventLog.Topics))
-		
+
 		// 打印所有Topics用于调试
 		for j, topic := range eventLog.Topics {
 			log.Printf("🔍 事件日志 %d - Topic[%d]: %s", i, j, topic.Hex())
 		}
-		
+
 		// 打印Data字段用于调试
 		log.Printf("🔍 事件日志 %d - Data: %s (长度: %d)", i, common.Bytes2Hex(eventLog.Data), len(eventLog.Data))
-		
+
 		// 验证事件来源合约地址
 		if eventLog.Address != factoryAddress {
 			log.Printf("⚠️ 事件日志 %d: 合约地址不匹配，跳过", i)
 			continue
 		}
-		
+
 		// 验证Topics数量
 		if len(eventLog.Topics) == 0 {
 			log.Printf("⚠️ 事件日志 %d: Topics为空，跳过", i)
 			continue
 		}
-		
+
 		log.Printf("🔍 事件日志 %d: 事件签名=%s", i, eventLog.Topics[0].Hex())
-		
+
 		// 验证事件签名
 		if eventLog.Topics[0] == proxyCreationTopic {
 			log.Printf("✅ 找到ProxyCreation事件！")
-			
+
 			// 正确的Safe地址提取方式：从Data字段的第12-32字节提取
 			if len(eventLog.Data) >= 32 {
 				// ProxyCreation事件的Data结构：
@@ -483,14 +483,14 @@ func (m *SafeCreationMonitor) extractSafeAddressFromReceipt(receipt *types.Recei
 				log.Printf("✅ 从Data字段正确提取Safe地址: %s", safeAddress)
 				return safeAddress, nil
 			}
-			
+
 			// 备用方式1: 从Topics[1]提取（如果存在）
 			if len(eventLog.Topics) > 1 {
 				safeAddress := common.HexToAddress(eventLog.Topics[1].Hex()).Hex()
 				log.Printf("✅ 备用方式 - 从Topics[1]提取Safe地址: %s", safeAddress)
 				return safeAddress, nil
 			}
-			
+
 			log.Printf("❌ ProxyCreation事件Data长度不足或格式错误: Data长度=%d", len(eventLog.Data))
 		}
 	}

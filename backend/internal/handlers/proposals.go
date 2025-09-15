@@ -146,7 +146,7 @@ func CreateProposal(c *gin.Context) {
 
 	// 转换ETH金额为wei
 	valueInWei := convertEthToWei(req.Value)
-	
+
 	// 验证转换后的Wei值是否合理
 	if weiValue, ok := new(big.Int).SetString(valueInWei, 10); ok {
 		// 检查是否超过合理范围 (例如不超过1000万ETH)
@@ -199,7 +199,6 @@ func CreateProposal(c *gin.Context) {
 		// 如果重新查询失败，仍然返回原始proposal
 		createdProposal = proposal
 	}
-	
 
 	// 初始化工作流（异步处理，不阻塞响应）
 	go func() {
@@ -274,7 +273,6 @@ func GetProposal(c *gin.Context) {
 		})
 		return
 	}
-
 
 	// 检查用户权限
 	hasAccess := proposal.Safe.CreatedBy == userID
@@ -543,7 +541,7 @@ func SignProposal(c *gin.Context) {
 	// 检查用户的钱包地址是否在Safe的所有者列表中
 	isOwner := false
 	userWalletAddress := strings.ToLower(*user.WalletAddress)
-	
+
 	// 添加详细调试日志
 	log.Printf("=== Safe所有者验证调试 ===")
 	log.Printf("用户钱包地址: %s", userWalletAddress)
@@ -558,7 +556,7 @@ func SignProposal(c *gin.Context) {
 			break
 		}
 	}
-	
+
 	if !isOwner {
 		log.Printf("❌ 用户不是Safe所有者，拒绝签名")
 		c.JSON(http.StatusForbidden, gin.H{
@@ -571,7 +569,7 @@ func SignProposal(c *gin.Context) {
 		})
 		return
 	}
-	
+
 	log.Printf("✅ 用户验证通过，允许签名")
 
 	// 检查用户是否已经签名
@@ -587,12 +585,12 @@ func SignProposal(c *gin.Context) {
 	// 获取签名时使用的nonce和交易哈希
 	var usedNonce *int64
 	var safeTxHash *string
-	
+
 	if req.UsedNonce != nil {
 		nonce := int64(*req.UsedNonce)
 		usedNonce = &nonce
 	}
-	
+
 	if req.SafeTxHash != "" {
 		safeTxHash = &req.SafeTxHash
 	}

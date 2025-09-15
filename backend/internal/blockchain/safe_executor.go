@@ -112,25 +112,25 @@ func (se *SafeExecutor) executeTransfer(proposal *models.Proposal, safeAddress c
 	if err != nil {
 		return "", fmt.Errorf("failed to get current Safe nonce: %v", err)
 	}
-	
+
 	log.Printf("Current Safe nonce: %s", currentNonce.String())
-	
+
 	// 企业级nonce管理：验证签名并处理nonce不匹配情况
 	log.Printf("=== 企业级nonce管理：智能签名验证 ===")
-	
+
 	// 首先尝试验证当前nonce的签名
 	validSignatures, err := se.validateSignaturesForCurrentNonce(proposal.ID, safeAddress, currentNonce)
 	if err != nil {
 		return "", fmt.Errorf("failed to validate signatures for current nonce: %v", err)
 	}
-	
+
 	log.Printf("Found %d signatures valid for current nonce %s", len(validSignatures), currentNonce.String())
-	
+
 	// 如果当前nonce的签名不足，检查是否有其他nonce的签名可用
 	if len(validSignatures) < int(proposal.RequiredSignatures) {
-		log.Printf("⚠️ 当前nonce %s的签名不足 (%d/%d)，检查是否需要重新签名", 
+		log.Printf("⚠️ 当前nonce %s的签名不足 (%d/%d)，检查是否需要重新签名",
 			currentNonce.String(), len(validSignatures), proposal.RequiredSignatures)
-		
+
 		// 查询所有签名，分析nonce分布
 		var allSignatures []models.Signature
 		err = se.db.Preload("Signer").Where("proposal_id = ? AND status = ?", proposal.ID, "valid").
@@ -149,16 +149,16 @@ func (se *SafeExecutor) executeTransfer(proposal *models.Proposal, safeAddress c
 					log.Printf("  - 签名者 %s 使用nonce %s", walletAddr, nonce)
 				}
 			}
-			
+
 			for nonce, count := range nonceCount {
 				log.Printf("  - Nonce %s: %d个签名", nonce, count)
 			}
 		}
-		
-		return "", fmt.Errorf("insufficient valid signatures for current nonce %s. Need %d, have %d. 请用户使用当前nonce %s重新签名", 
+
+		return "", fmt.Errorf("insufficient valid signatures for current nonce %s. Need %d, have %d. 请用户使用当前nonce %s重新签名",
 			currentNonce.String(), proposal.RequiredSignatures, len(validSignatures), currentNonce.String())
 	}
-	
+
 	// 执行Safe交易，使用验证过的签名
 	txHash, err := se.executeSafeTransaction(
 		safeAddress,
@@ -401,7 +401,7 @@ func (se *SafeExecutor) executeSafeTransaction(
 	log.Printf("  - gasToken: %s", gasToken.Hex())
 	log.Printf("  - refundReceiver: %s", refundReceiver.Hex())
 	log.Printf("  - signatures: %x", signatures)
-	
+
 	execData, err := safeABI.Pack(
 		"execTransaction",
 		to, value, data, operation,
@@ -417,7 +417,7 @@ func (se *SafeExecutor) executeSafeTransaction(
 	ctx := context.Background()
 	fromAddress := crypto.PubkeyToAddress(se.privateKey.PublicKey)
 	log.Printf("发送方地址: %s", fromAddress.Hex())
-	
+
 	nonceUint64, err := se.client.PendingNonceAt(ctx, fromAddress)
 	if err != nil {
 		return "", fmt.Errorf("failed to get nonce: %v", err)
@@ -660,7 +660,7 @@ func (se *SafeExecutor) collectProposalSignatures(proposalID uuid.UUID, safeTxHa
 	// 验证每个签名
 	for i, sig := range signatures {
 		log.Printf("验证签名 %d:", i+1)
-		
+
 		// 验证签名数据格式
 		if sig.SignatureData == "" {
 			log.Printf("  ❌ 签名数据为空，跳过")
@@ -705,7 +705,7 @@ func (se *SafeExecutor) collectProposalSignatures(proposalID uuid.UUID, safeTxHa
 			log.Printf("  ❌ 签名者地址不匹配:")
 			log.Printf("    期望: %s", expectedSigner.Hex())
 			log.Printf("    实际: %s", recoveredAddr.Hex())
-			
+
 			// 检查签名是否记录了SafeTxHash，用于调试
 			if sig.SafeTxHash != nil {
 				log.Printf("    记录的SafeTxHash: %s", *sig.SafeTxHash)
@@ -720,7 +720,7 @@ func (se *SafeExecutor) collectProposalSignatures(proposalID uuid.UUID, safeTxHa
 		// 处理v值以符合Safe合约要求
 		processedSig := make([]byte, 65)
 		copy(processedSig, sigBytes)
-		
+
 		// Safe合约签名v值处理
 		if processedSig[64] == 0 || processedSig[64] == 1 {
 			processedSig[64] += 27
@@ -767,7 +767,7 @@ func (se *SafeExecutor) collectProposalSignatures(proposalID uuid.UUID, safeTxHa
 	log.Printf("验证通过的签名数量: %d", len(validatedSigs))
 	log.Printf("合并后签名总长度: %d字节", len(combinedSignatures))
 	log.Printf("合并签名数据: %x", combinedSignatures)
-	
+
 	return combinedSignatures, nil
 }
 
@@ -784,13 +784,13 @@ func (se *SafeExecutor) recoverSignerFromSignature(hash common.Hash, signature [
 	// 详细日志记录签名数据
 	log.Printf("    原始签名长度: %d", len(signature))
 	log.Printf("    原始v值: %d", signature[64])
-	
+
 	// 处理v值 - EIP-712签名通常使用27/28，需要转换为0/1
 	v := sig[64]
-	
+
 	// 尝试不同的v值处理方式
 	if v == 27 || v == 28 {
-		sig[64] = v - 27  // 标准以太坊签名：27/28 -> 0/1
+		sig[64] = v - 27 // 标准以太坊签名：27/28 -> 0/1
 	} else if v == 0 || v == 1 {
 		// 已经是正确格式，无需修改
 	} else if v > 28 {
@@ -799,9 +799,9 @@ func (se *SafeExecutor) recoverSignerFromSignature(hash common.Hash, signature [
 	} else {
 		log.Printf("    尝试使用原始v值: %d", v)
 	}
-	
+
 	log.Printf("    处理后v值: %d", sig[64])
-	
+
 	// 确保v值在有效范围内
 	if sig[64] > 1 {
 		// 尝试其他可能的v值
@@ -839,14 +839,14 @@ func (se *SafeExecutor) recoverSignerFromSignature(hash common.Hash, signature [
 // validateSignaturesForCurrentNonce 验证签名是否对当前Safe nonce有效
 func (se *SafeExecutor) validateSignaturesForCurrentNonce(proposalID uuid.UUID, safeAddress common.Address, currentNonce *big.Int) ([]models.Signature, error) {
 	log.Printf("=== 企业级nonce管理：验证签名对当前nonce %s的有效性 ===", currentNonce.String())
-	
+
 	// 1. 查询提案信息
 	var proposal models.Proposal
 	err := se.db.First(&proposal, "id = ?", proposalID).Error
 	if err != nil {
 		return nil, fmt.Errorf("failed to query proposal: %v", err)
 	}
-	
+
 	// 2. 查询提案的所有有效签名，包含nonce信息
 	var signatures []models.Signature
 	err = se.db.Preload("Signer").Where("proposal_id = ? AND status = ?", proposalID, "valid").
@@ -854,13 +854,13 @@ func (se *SafeExecutor) validateSignaturesForCurrentNonce(proposalID uuid.UUID, 
 	if err != nil {
 		return nil, fmt.Errorf("failed to query signatures: %v", err)
 	}
-	
+
 	log.Printf("Found %d signatures to validate", len(signatures))
-	
+
 	// 3. 构建当前nonce的SafeTxHash用于验证
 	toAddress := common.HexToAddress(*proposal.ToAddress)
 	value, _ := new(big.Int).SetString(proposal.Value, 10)
-	
+
 	safeTxHash := se.buildSafeTxHash(
 		safeAddress,
 		toAddress,
@@ -868,38 +868,38 @@ func (se *SafeExecutor) validateSignaturesForCurrentNonce(proposalID uuid.UUID, 
 		[]byte{}, // 转账无data
 		currentNonce,
 	)
-	
+
 	log.Printf("Expected SafeTxHash for nonce %s: %s", currentNonce.String(), safeTxHash.Hex())
-	
+
 	// 4. 验证签名
 	var validSignatures []models.Signature
-	
+
 	for _, sig := range signatures {
 		walletAddr := "unknown"
 		if sig.Signer.WalletAddress != nil {
 			walletAddr = *sig.Signer.WalletAddress
 		}
-		
+
 		// 检查签名是否记录了使用的nonce
 		if sig.UsedNonce == nil {
 			log.Printf("  ⚠️  签名缺少nonce记录，跳过: signer=%s", walletAddr)
 			continue
 		}
-		
+
 		sigNonce := big.NewInt(*sig.UsedNonce)
-		
+
 		// 只验证使用当前nonce的签名
 		if sigNonce.Cmp(currentNonce) != 0 {
-			log.Printf("  ❌ 签名nonce不匹配: 签名nonce=%s, 当前nonce=%s, signer=%s", 
+			log.Printf("  ❌ 签名nonce不匹配: 签名nonce=%s, 当前nonce=%s, signer=%s",
 				sigNonce.String(), currentNonce.String(), walletAddr)
 			continue
 		}
-		
+
 		// 验证签名的SafeTxHash
 		if sig.SafeTxHash != nil {
 			log.Printf("  📝 记录的SafeTxHash: %s", *sig.SafeTxHash)
 		}
-		
+
 		// 解码签名数据
 		sigData := strings.TrimPrefix(sig.SignatureData, "0x")
 		sigBytes, err := hex.DecodeString(sigData)
@@ -907,38 +907,38 @@ func (se *SafeExecutor) validateSignaturesForCurrentNonce(proposalID uuid.UUID, 
 			log.Printf("  ❌ 签名解码失败: %v", err)
 			continue
 		}
-		
+
 		// 验证签名长度
 		if len(sigBytes) != 65 {
 			log.Printf("  ❌ 签名长度无效: %d字节，期望65字节", len(sigBytes))
 			continue
 		}
-		
+
 		// 恢复签名者地址
 		recoveredAddr, err := se.recoverSignerFromSignature(safeTxHash, sigBytes)
 		if err != nil {
 			log.Printf("  ❌ 签名恢复失败: %v", err)
 			continue
 		}
-		
+
 		expectedSigner := common.HexToAddress(walletAddr)
 		log.Printf("  🔍 期望签名者: %s, 恢复的签名者: %s", expectedSigner.Hex(), recoveredAddr.Hex())
-		
+
 		// 验证恢复的地址与期望的签名者地址匹配 (大小写不敏感)
 		if !strings.EqualFold(recoveredAddr.Hex(), expectedSigner.Hex()) {
 			log.Printf("  ❌ 签名者地址不匹配:")
-			log.Printf("    期望: %s", expectedSigner.Hex()) 
+			log.Printf("    期望: %s", expectedSigner.Hex())
 			log.Printf("    实际: %s", recoveredAddr.Hex())
 			continue
 		}
-		
+
 		log.Printf("  ✅ 签名验证成功: nonce=%s, signer=%s", sigNonce.String(), walletAddr)
 		validSignatures = append(validSignatures, sig)
 	}
-	
-	log.Printf("=== 企业级nonce验证完成：%d/%d 签名对当前nonce %s有效 ===", 
+
+	log.Printf("=== 企业级nonce验证完成：%d/%d 签名对当前nonce %s有效 ===",
 		len(validSignatures), len(signatures), currentNonce.String())
-	
+
 	return validSignatures, nil
 }
 
@@ -950,66 +950,66 @@ func (se *SafeExecutor) buildSafeTxHash(safeAddress, to common.Address, value *b
 	log.Printf("转账金额: %s wei", value.String())
 	log.Printf("数据长度: %d bytes", len(data))
 	log.Printf("Nonce: %s", nonce.String())
-	
+
 	// 1. EIP-712 Domain Separator - 与前端完全一致
 	domainTypeHash := crypto.Keccak256([]byte("EIP712Domain(uint256 chainId,address verifyingContract)"))
 	chainIdBytes := common.LeftPadBytes(big.NewInt(11155111).Bytes(), 32) // Sepolia
 	verifyingContractBytes := common.LeftPadBytes(safeAddress.Bytes(), 32)
-	
+
 	domainSeparator := crypto.Keccak256Hash(
 		domainTypeHash,
 		chainIdBytes,
 		verifyingContractBytes,
 	)
-	
+
 	log.Printf("Domain separator: %s", domainSeparator.Hex())
-	
+
 	// 2. SafeTx TypeHash - 与前端完全一致
 	safeTxTypeHash := crypto.Keccak256([]byte("SafeTx(address to,uint256 value,bytes data,uint8 operation,uint256 safeTxGas,uint256 baseGas,uint256 gasPrice,address gasToken,address refundReceiver,uint256 nonce)"))
-	
+
 	log.Printf("SafeTx TypeHash: %s", common.BytesToHash(safeTxTypeHash).Hex())
-	
+
 	// 3. 构建SafeTx结构体哈希 - 与前端参数完全一致
 	// 确保data为空时使用空字节数组
 	if data == nil {
 		data = []byte{}
 	}
 	dataHash := crypto.Keccak256(data)
-	
+
 	// 构建结构体哈希的所有字段
 	structHashData := [][]byte{
 		safeTxTypeHash,                                    // typeHash
-		common.LeftPadBytes(to.Bytes(), 32),              // to
-		common.LeftPadBytes(value.Bytes(), 32),           // value
-		common.LeftPadBytes(dataHash, 32),                // keccak256(data)
-		common.LeftPadBytes([]byte{0}, 32),               // operation = 0 (CALL)
-		common.LeftPadBytes(big.NewInt(0).Bytes(), 32),   // safeTxGas = 0
-		common.LeftPadBytes(big.NewInt(0).Bytes(), 32),   // baseGas = 0
-		common.LeftPadBytes(big.NewInt(0).Bytes(), 32),   // gasPrice = 0
+		common.LeftPadBytes(to.Bytes(), 32),               // to
+		common.LeftPadBytes(value.Bytes(), 32),            // value
+		common.LeftPadBytes(dataHash, 32),                 // keccak256(data)
+		common.LeftPadBytes([]byte{0}, 32),                // operation = 0 (CALL)
+		common.LeftPadBytes(big.NewInt(0).Bytes(), 32),    // safeTxGas = 0
+		common.LeftPadBytes(big.NewInt(0).Bytes(), 32),    // baseGas = 0
+		common.LeftPadBytes(big.NewInt(0).Bytes(), 32),    // gasPrice = 0
 		common.LeftPadBytes(common.Address{}.Bytes(), 32), // gasToken = 0x0
 		common.LeftPadBytes(common.Address{}.Bytes(), 32), // refundReceiver = 0x0
-		common.LeftPadBytes(nonce.Bytes(), 32),           // nonce
+		common.LeftPadBytes(nonce.Bytes(), 32),            // nonce
 	}
-	
+
 	// 合并所有字段
 	var combined []byte
 	for _, field := range structHashData {
 		combined = append(combined, field...)
 	}
-	
+
 	structHash := crypto.Keccak256(combined)
 	log.Printf("Struct hash: %s", common.BytesToHash(structHash).Hex())
-	
+
 	// 4. 最终EIP-712哈希 - 与前端完全一致
 	finalHashData := []byte{}
 	finalHashData = append(finalHashData, []byte("\x19\x01")...)
 	finalHashData = append(finalHashData, domainSeparator.Bytes()...)
 	finalHashData = append(finalHashData, structHash...)
-	
+
 	finalHash := crypto.Keccak256Hash(finalHashData)
-	
+
 	log.Printf("=== SafeTxHash构建完成 ===")
 	log.Printf("最终哈希: %s", finalHash.Hex())
-	
+
 	return finalHash
 }

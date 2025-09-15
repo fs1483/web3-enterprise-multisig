@@ -2,6 +2,7 @@ import React from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { useWalletStore } from '../../stores/walletStore';
 import { Button } from '../ui/Button';
+import NotificationCenter from '../notifications/NotificationCenter';
 
 export const Header: React.FC = () => {
   const { user, logout } = useAuthStore();
@@ -109,6 +110,9 @@ export const Header: React.FC = () => {
                 <span style={{display: window.innerWidth >= 640 ? 'none' : 'inline'}}>Connect</span>
               </Button>
             )}
+
+            {/* Notification Center */}
+            <NotificationCenter />
 
             {/* User Menu */}
             <div style={{display: 'flex', alignItems: 'center', gap: '6px'}}>

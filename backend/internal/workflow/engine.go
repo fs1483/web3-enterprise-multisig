@@ -30,7 +30,7 @@ type WorkflowStatus struct {
 
 // InitializeProposalWorkflow 初始化提案工作流
 func InitializeProposalWorkflow(proposalID uuid.UUID) error {
-	log.Printf("Initializing workflow for proposal %s", proposalID)
+	log.Printf("🚀 Initializing workflow for proposal %s", proposalID)
 
 	// 获取提案详情和Safe信息
 	var proposal models.Proposal
@@ -41,9 +41,12 @@ func InitializeProposalWorkflow(proposalID uuid.UUID) error {
 	}
 
 	// 1. 发送实时通知给在线的Safe所有者
+	log.Printf("🔔 开始通知在线Safe所有者...")
 	if err := notifyOnlineOwners(&proposal); err != nil {
-		log.Printf("Failed to notify online owners for proposal %s: %v", proposalID, err)
+		log.Printf("❌ Failed to notify online owners for proposal %s: %v", proposalID, err)
 		// 通知失败不应该阻止工作流初始化
+	} else {
+		log.Printf("✅ 在线所有者通知完成")
 	}
 
 	// 2. 处理离线用户通知
@@ -211,20 +214,40 @@ func notifyOnlineOwners(proposal *models.Proposal) error {
 
 	// 通知所有Safe所有者（除了创建者）
 	notifiedCount := 0
-	for _, ownerIDStr := range proposal.Safe.Owners {
-		ownerID, err := uuid.Parse(ownerIDStr)
-		if err != nil {
-			log.Printf("⚠️ 无效的所有者ID: %s", ownerIDStr)
+	log.Printf("🔍 Safe所有者列表(钱包地址): %v", proposal.Safe.Owners)
+	log.Printf("🔍 提案创建者ID: %s", proposal.CreatedBy.String())
+
+	// 将PostgreSQLStringArray转换为[]string
+	ownersSlice := []string(proposal.Safe.Owners)
+	log.Printf("🔍 转换后的所有者列表: %v", ownersSlice)
+
+	// 获取提案创建者的钱包地址
+	var creatorUser models.User
+	if err := database.DB.First(&creatorUser, proposal.CreatedBy).Error; err != nil {
+		log.Printf("⚠️ 无法获取提案创建者信息: %v", err)
+	}
+
+	for _, ownerAddress := range ownersSlice {
+		log.Printf("🔍 处理所有者地址: %s", ownerAddress)
+
+		// 跳过提案创建者（通过钱包地址比较）
+		if creatorUser.WalletAddress != nil && *creatorUser.WalletAddress == ownerAddress {
+			log.Printf("⏭️ 跳过提案创建者地址: %s", ownerAddress)
 			continue
 		}
 
-		// 跳过提案创建者（避免自己通知自己）
-		if ownerID == proposal.CreatedBy {
+		// 根据钱包地址查找用户ID
+		var ownerUser models.User
+		if err := database.DB.Where("wallet_address = ?", ownerAddress).First(&ownerUser).Error; err != nil {
+			log.Printf("⚠️ 未找到钱包地址对应的用户: %s, 错误: %v", ownerAddress, err)
 			continue
 		}
+
+		log.Printf("🔍 找到用户: 地址=%s, 用户ID=%s", ownerAddress, ownerUser.ID.String())
 
 		// 发送WebSocket通知
-		hub.SendToUser(ownerID, message)
+		log.Printf("📤 向用户发送通知: 用户ID=%s, 钱包地址=%s", ownerUser.ID.String(), ownerAddress)
+		hub.SendToUser(ownerUser.ID, message)
 		notifiedCount++
 	}
 
@@ -272,17 +295,22 @@ func handleOfflineOwnerNotifications(proposal *models.Proposal) error {
 	return nil
 }
 
+// 全局WebSocket Hub实例
+var globalWebSocketHub *websocket.Hub
+
+// SetWebSocketHub 设置全局WebSocket Hub实例
+func SetWebSocketHub(hub *websocket.Hub) {
+	globalWebSocketHub = hub
+	log.Printf("✅ WebSocket Hub已设置到workflow引擎")
+}
+
 // getWebSocketHub 获取WebSocket Hub实例
-// TODO: 这个函数需要根据实际的架构来实现
-// 建议通过依赖注入或全局变量的方式获取Hub实例
 func getWebSocketHub() *websocket.Hub {
-	// 临时实现：返回nil，实际项目中需要传递真实的Hub实例
-	// 可以通过以下方式实现：
-	// 1. 在main.go中创建Hub实例，通过参数传递给workflow
-	// 2. 使用全局变量存储Hub实例
-	// 3. 通过依赖注入容器管理Hub实例
-	log.Printf("⚠️ getWebSocketHub() 需要实现 - 当前返回nil")
-	return nil
+	if globalWebSocketHub == nil {
+		log.Printf("⚠️ WebSocket Hub未设置，无法发送实时通知")
+		return nil
+	}
+	return globalWebSocketHub
 }
 
 // getNextActions 获取下一步可执行的操作
