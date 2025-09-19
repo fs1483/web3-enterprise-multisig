@@ -1,6 +1,6 @@
 import React from 'react';
 import { Layout } from '../components/layout/Layout';
-import { BarChart3, TrendingUp, Activity, PieChart } from 'lucide-react';
+import { BarChart3, Activity } from 'lucide-react';
 
 export const AnalyticsPage: React.FC = () => {
   return (
@@ -18,38 +18,6 @@ export const AnalyticsPage: React.FC = () => {
             <p className="text-lg text-gray-600">深入了解您的Safe钱包和提案数据</p>
           </div>
 
-          {/* 即将推出的功能预览 */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center mb-4">
-                <TrendingUp className="h-6 w-6 text-green-600 mr-3" />
-                <h3 className="text-lg font-semibold text-gray-900">交易趋势</h3>
-              </div>
-              <p className="text-gray-600 text-sm">
-                查看Safe钱包的交易量、频率和价值趋势分析
-              </p>
-            </div>
-
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center mb-4">
-                <PieChart className="h-6 w-6 text-purple-600 mr-3" />
-                <h3 className="text-lg font-semibold text-gray-900">资产分布</h3>
-              </div>
-              <p className="text-gray-600 text-sm">
-                分析不同代币和资产在Safe钱包中的分布情况
-              </p>
-            </div>
-
-            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center mb-4">
-                <Activity className="h-6 w-6 text-orange-600 mr-3" />
-                <h3 className="text-lg font-semibold text-gray-900">活动统计</h3>
-              </div>
-              <p className="text-gray-600 text-sm">
-                统计提案创建、签名、执行等各类活动的数据
-              </p>
-            </div>
-          </div>
 
           {/* 即将推出提示 */}
           <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 p-8 text-center">

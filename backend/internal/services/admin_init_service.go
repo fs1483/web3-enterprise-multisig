@@ -2,8 +2,8 @@
 // 超级管理员初始化服务
 // 版本: v1.0
 // 功能: 系统启动时初始化超级管理员账户
-// 作者: Cascade AI
-// 创建时间: 2025-09-16
+// 作者: sfan
+// 创建时间: 2024-09-16
 // =====================================================
 
 package services
@@ -48,7 +48,7 @@ func (s *AdminInitService) InitializeSystem() (*InitSystemResult, error) {
 	// 检查是否已存在超级管理员
 	var existingAdmin models.User
 	err := s.db.Where("role = ? AND is_active = ?", "super_admin", true).First(&existingAdmin).Error
-	
+
 	if err == nil {
 		// 超级管理员已存在
 		result.SuperAdminCreated = false

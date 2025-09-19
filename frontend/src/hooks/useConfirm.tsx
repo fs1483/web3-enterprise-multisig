@@ -2,8 +2,8 @@
 // 确认对话框管理 Hook
 // 版本: v1.0
 // 功能: 提供简单易用的确认对话框功能
-// 作者: Cascade AI
-// 创建时间: 2025-09-19
+// 作者: sfan
+// 创建时间: 2024-03-15
 // =====================================================
 
 import React, { useState, useCallback, createContext, useContext } from 'react';

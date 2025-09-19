@@ -2,8 +2,8 @@
 // 策略管理API处理器
 // 版本: v2.0
 // 功能: 提供企业级多签系统的策略管理API接口
-// 作者: Cascade AI
-// 创建时间: 2025-09-16
+// 作者: sfan
+// 创建时间: 2024-09-16
 // =====================================================
 
 package handlers
@@ -43,12 +43,12 @@ type UpdatePolicyRequest struct {
 
 // CreatePolicyTemplateRequest 创建策略模板请求
 type CreatePolicyTemplateRequest struct {
-	Name         string                 `json:"name" binding:"required"`
-	Description  string                 `json:"description"`
-	Category     string                 `json:"category" binding:"required"`
-	PolicyType   string                 `json:"policy_type" binding:"required"`
+	Name          string                 `json:"name" binding:"required"`
+	Description   string                 `json:"description"`
+	Category      string                 `json:"category" binding:"required"`
+	PolicyType    string                 `json:"policy_type" binding:"required"`
 	DefaultParams map[string]interface{} `json:"default_params" binding:"required"`
-	IsPublic     bool                   `json:"is_public"`
+	IsPublic      bool                   `json:"is_public"`
 }
 
 // ValidatePolicyRequest 验证策略请求
@@ -100,8 +100,8 @@ func GetSafePolicies(c *gin.Context) {
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "权限检查失败",
-			"code":  "PERMISSION_CHECK_FAILED",
+			"error":   "权限检查失败",
+			"code":    "PERMISSION_CHECK_FAILED",
 			"details": err.Error(),
 		})
 		return
@@ -109,8 +109,8 @@ func GetSafePolicies(c *gin.Context) {
 
 	if !hasPermission.Granted {
 		c.JSON(http.StatusForbidden, gin.H{
-			"error": "没有权限查看Safe策略",
-			"code":  "PERMISSION_DENIED",
+			"error":   "没有权限查看Safe策略",
+			"code":    "PERMISSION_DENIED",
 			"details": hasPermission.DenialReason,
 		})
 		return
@@ -146,8 +146,8 @@ func GetSafePolicies(c *gin.Context) {
 	err = query.Order("created_at DESC").Find(&policies).Error
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "获取策略列表失败",
-			"code":  "GET_POLICIES_FAILED",
+			"error":   "获取策略列表失败",
+			"code":    "GET_POLICIES_FAILED",
 			"details": err.Error(),
 		})
 		return
@@ -216,8 +216,8 @@ func CreateSafePolicy(c *gin.Context) {
 	var req CreatePolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "请求参数格式错误",
-			"code":  "INVALID_REQUEST_FORMAT",
+			"error":   "请求参数格式错误",
+			"code":    "INVALID_REQUEST_FORMAT",
 			"details": err.Error(),
 		})
 		return
@@ -233,8 +233,8 @@ func CreateSafePolicy(c *gin.Context) {
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "权限检查失败",
-			"code":  "PERMISSION_CHECK_FAILED",
+			"error":   "权限检查失败",
+			"code":    "PERMISSION_CHECK_FAILED",
 			"details": err.Error(),
 		})
 		return
@@ -242,8 +242,8 @@ func CreateSafePolicy(c *gin.Context) {
 
 	if !hasPermission.Granted {
 		c.JSON(http.StatusForbidden, gin.H{
-			"error": "没有权限创建Safe策略",
-			"code":  "PERMISSION_DENIED",
+			"error":   "没有权限创建Safe策略",
+			"code":    "PERMISSION_DENIED",
 			"details": hasPermission.DenialReason,
 		})
 		return
@@ -258,8 +258,8 @@ func CreateSafePolicy(c *gin.Context) {
 	parametersJSON, err := json.Marshal(req.Parameters)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "参数序列化失败",
-			"code":  "PARAMETER_SERIALIZATION_FAILED",
+			"error":   "参数序列化失败",
+			"code":    "PARAMETER_SERIALIZATION_FAILED",
 			"details": err.Error(),
 		})
 		return
@@ -274,8 +274,8 @@ func CreateSafePolicy(c *gin.Context) {
 
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "创建策略失败",
-			"code":  "CREATE_POLICY_FAILED",
+			"error":   "创建策略失败",
+			"code":    "CREATE_POLICY_FAILED",
 			"details": err.Error(),
 		})
 		return
@@ -304,8 +304,8 @@ func ValidatePolicy(c *gin.Context) {
 	var req ValidatePolicyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "请求参数格式错误",
-			"code":  "INVALID_REQUEST_FORMAT",
+			"error":   "请求参数格式错误",
+			"code":    "INVALID_REQUEST_FORMAT",
 			"details": err.Error(),
 		})
 		return
@@ -316,8 +316,8 @@ func ValidatePolicy(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"data": gin.H{
-			"is_valid": true,
-			"error":    nil,
+			"is_valid":    true,
+			"error":       nil,
 			"policy_type": req.PolicyType,
 		},
 	})

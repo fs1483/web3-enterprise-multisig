@@ -2,8 +2,8 @@
 // 权限管理API处理器
 // 版本: v2.0
 // 功能: 提供企业级多签系统的权限管理API接口
-// 作者: Cascade AI
-// 创建时间: 2025-09-16
+// 作者: sfan
+// 创建时间: 2024-09-16
 // =====================================================
 
 package handlers
@@ -14,11 +14,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"web3-enterprise-multisig/internal/database"
 	"web3-enterprise-multisig/internal/models"
 	"web3-enterprise-multisig/internal/services"
+
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 // =====================================================
@@ -83,8 +84,8 @@ func GetSafeMembers(c *gin.Context) {
 	err = database.DB.Where("id = ?", userID).First(&user).Error
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "获取用户信息失败",
-			"code":  "GET_USER_FAILED",
+			"error":   "获取用户信息失败",
+			"code":    "GET_USER_FAILED",
 			"details": err.Error(),
 		})
 		return
@@ -92,7 +93,7 @@ func GetSafeMembers(c *gin.Context) {
 
 	// 超级管理员可以查看所有Safe成员
 	isSuperAdmin := user.Role == "super_admin"
-	
+
 	var hasAccess bool
 	if isSuperAdmin {
 		hasAccess = true
@@ -106,8 +107,8 @@ func GetSafeMembers(c *gin.Context) {
 		})
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "权限检查失败",
-				"code":  "PERMISSION_CHECK_FAILED",
+				"error":   "权限检查失败",
+				"code":    "PERMISSION_CHECK_FAILED",
 				"details": err.Error(),
 			})
 			return
@@ -131,7 +132,7 @@ func GetSafeMembers(c *gin.Context) {
 
 		// 检查是否是创建者
 		isCreator := safe.CreatedBy == userID.(uuid.UUID)
-		
+
 		// 检查是否是所有者（需要用户的钱包地址）
 		isOwner := false
 		if user.WalletAddress != nil && *user.WalletAddress != "" {
@@ -146,8 +147,8 @@ func GetSafeMembers(c *gin.Context) {
 		// 如果既不是创建者也不是所有者，拒绝访问
 		if !isCreator && !isOwner {
 			c.JSON(http.StatusForbidden, gin.H{
-				"error": "没有权限查看Safe成员",
-				"code":  "PERMISSION_DENIED",
+				"error":   "没有权限查看Safe成员",
+				"code":    "PERMISSION_DENIED",
 				"details": "用户不是Safe的创建者或所有者",
 			})
 			return
@@ -158,8 +159,8 @@ func GetSafeMembers(c *gin.Context) {
 	members, err := permissionService.GetSafeMembers(c.Request.Context(), safeID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "获取Safe成员列表失败",
-			"code":  "GET_MEMBERS_FAILED",
+			"error":   "获取Safe成员列表失败",
+			"code":    "GET_MEMBERS_FAILED",
 			"details": err.Error(),
 		})
 		return
@@ -207,8 +208,8 @@ func GetSafeRoleConfigurations(c *gin.Context) {
 	err = database.DB.Where("id = ?", userID).First(&user).Error
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "获取用户信息失败",
-			"code":  "GET_USER_FAILED",
+			"error":   "获取用户信息失败",
+			"code":    "GET_USER_FAILED",
 			"details": err.Error(),
 		})
 		return
@@ -216,7 +217,7 @@ func GetSafeRoleConfigurations(c *gin.Context) {
 
 	// 超级管理员可以查看所有Safe角色配置
 	isSuperAdmin := user.Role == "super_admin"
-	
+
 	if !isSuperAdmin {
 		// 检查用户是否有查看权限
 		hasPermission, err := permissionService.CheckPermission(c.Request.Context(), services.PermissionRequest{
@@ -227,8 +228,8 @@ func GetSafeRoleConfigurations(c *gin.Context) {
 		})
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": "权限检查失败",
-				"code":  "PERMISSION_CHECK_FAILED",
+				"error":   "权限检查失败",
+				"code":    "PERMISSION_CHECK_FAILED",
 				"details": err.Error(),
 			})
 			return
@@ -271,8 +272,8 @@ func GetSafeRoleConfigurations(c *gin.Context) {
 	roleConfigs, err := permissionService.GetSafeRoleConfigurations(c.Request.Context(), safeID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "获取角色配置失败",
-			"code":  "GET_ROLE_CONFIGS_FAILED",
+			"error":   "获取角色配置失败",
+			"code":    "GET_ROLE_CONFIGS_FAILED",
 			"details": err.Error(),
 		})
 		return
@@ -324,8 +325,8 @@ func CreateCustomRole(c *gin.Context) {
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "请求参数格式错误",
-			"code":  "INVALID_REQUEST_FORMAT",
+			"error":   "请求参数格式错误",
+			"code":    "INVALID_REQUEST_FORMAT",
 			"details": err.Error(),
 		})
 		return
@@ -350,8 +351,8 @@ func CreateCustomRole(c *gin.Context) {
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "权限检查失败",
-			"code":  "PERMISSION_CHECK_FAILED",
+			"error":   "权限检查失败",
+			"code":    "PERMISSION_CHECK_FAILED",
 			"details": err.Error(),
 		})
 		return
@@ -378,8 +379,8 @@ func CreateCustomRole(c *gin.Context) {
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "创建自定义角色失败",
-			"code":  "CREATE_ROLE_FAILED",
+			"error":   "创建自定义角色失败",
+			"code":    "CREATE_ROLE_FAILED",
 			"details": err.Error(),
 		})
 		return
@@ -439,8 +440,8 @@ func UpdateRolePermissions(c *gin.Context) {
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "请求参数格式错误",
-			"code":  "INVALID_REQUEST_FORMAT",
+			"error":   "请求参数格式错误",
+			"code":    "INVALID_REQUEST_FORMAT",
 			"details": err.Error(),
 		})
 		return
@@ -456,8 +457,8 @@ func UpdateRolePermissions(c *gin.Context) {
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "权限检查失败",
-			"code":  "PERMISSION_CHECK_FAILED",
+			"error":   "权限检查失败",
+			"code":    "PERMISSION_CHECK_FAILED",
 			"details": err.Error(),
 		})
 		return
@@ -484,8 +485,8 @@ func UpdateRolePermissions(c *gin.Context) {
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "更新角色权限失败",
-			"code":  "UPDATE_ROLE_FAILED",
+			"error":   "更新角色权限失败",
+			"code":    "UPDATE_ROLE_FAILED",
 			"details": err.Error(),
 		})
 		return
@@ -556,8 +557,8 @@ func DeleteCustomRole(c *gin.Context) {
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "权限检查失败",
-			"code":  "PERMISSION_CHECK_FAILED",
+			"error":   "权限检查失败",
+			"code":    "PERMISSION_CHECK_FAILED",
 			"details": err.Error(),
 		})
 		return
@@ -575,8 +576,8 @@ func DeleteCustomRole(c *gin.Context) {
 	err = permissionService.DeleteCustomRole(c.Request.Context(), safeID, roleName, userID.(uuid.UUID))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "删除角色失败",
-			"code":  "DELETE_ROLE_FAILED",
+			"error":   "删除角色失败",
+			"code":    "DELETE_ROLE_FAILED",
 			"details": err.Error(),
 		})
 		return
@@ -627,8 +628,8 @@ func AssignSafeRole(c *gin.Context) {
 	var req AssignRoleRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "请求参数格式错误",
-			"code":  "INVALID_REQUEST_FORMAT",
+			"error":   "请求参数格式错误",
+			"code":    "INVALID_REQUEST_FORMAT",
 			"details": err.Error(),
 		})
 		return
@@ -648,8 +649,8 @@ func AssignSafeRole(c *gin.Context) {
 	)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "分配角色失败",
-			"code":  "ASSIGN_ROLE_FAILED",
+			"error":   "分配角色失败",
+			"code":    "ASSIGN_ROLE_FAILED",
 			"details": err.Error(),
 		})
 		return
@@ -714,8 +715,8 @@ func RemoveSafeMember(c *gin.Context) {
 	)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "移除成员失败",
-			"code":  "REMOVE_MEMBER_FAILED",
+			"error":   "移除成员失败",
+			"code":    "REMOVE_MEMBER_FAILED",
 			"details": err.Error(),
 		})
 		return
@@ -798,8 +799,8 @@ func GetUserSafeRole(c *gin.Context) {
 	role, err := permissionService.GetUserSafeRole(c.Request.Context(), targetUserID, safeID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "获取用户角色失败",
-			"code":  "GET_ROLE_FAILED",
+			"error":   "获取用户角色失败",
+			"code":    "GET_ROLE_FAILED",
 			"details": err.Error(),
 		})
 		return
@@ -855,8 +856,8 @@ func CheckPermission(c *gin.Context) {
 	var req CheckPermissionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "请求参数格式错误",
-			"code":  "INVALID_REQUEST_FORMAT",
+			"error":   "请求参数格式错误",
+			"code":    "INVALID_REQUEST_FORMAT",
 			"details": err.Error(),
 		})
 		return
@@ -874,8 +875,8 @@ func CheckPermission(c *gin.Context) {
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "权限检查失败",
-			"code":  "PERMISSION_CHECK_FAILED",
+			"error":   "权限检查失败",
+			"code":    "PERMISSION_CHECK_FAILED",
 			"details": err.Error(),
 		})
 		return
@@ -918,8 +919,8 @@ func GetPermissionDefinitions(c *gin.Context) {
 	definitions, err := permissionService.GetPermissionDefinitions(c.Request.Context(), category, scope)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "获取权限定义失败",
-			"code":  "GET_DEFINITIONS_FAILED",
+			"error":   "获取权限定义失败",
+			"code":    "GET_DEFINITIONS_FAILED",
 			"details": err.Error(),
 		})
 		return
@@ -955,8 +956,8 @@ func CreateCustomPermission(c *gin.Context) {
 	var req CreateCustomPermissionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "请求参数格式错误",
-			"code":  "INVALID_REQUEST_FORMAT",
+			"error":   "请求参数格式错误",
+			"code":    "INVALID_REQUEST_FORMAT",
 			"details": err.Error(),
 		})
 		return
@@ -977,8 +978,8 @@ func CreateCustomPermission(c *gin.Context) {
 	)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "创建自定义权限失败",
-			"code":  "CREATE_PERMISSION_FAILED",
+			"error":   "创建自定义权限失败",
+			"code":    "CREATE_PERMISSION_FAILED",
 			"details": err.Error(),
 		})
 		return
@@ -1056,8 +1057,8 @@ func GetPermissionAuditLogs(c *gin.Context) {
 	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "权限检查失败",
-			"code":  "PERMISSION_CHECK_FAILED",
+			"error":   "权限检查失败",
+			"code":    "PERMISSION_CHECK_FAILED",
 			"details": err.Error(),
 		})
 		return
@@ -1065,8 +1066,8 @@ func GetPermissionAuditLogs(c *gin.Context) {
 
 	if !hasPermission.Granted {
 		c.JSON(http.StatusForbidden, gin.H{
-			"error": "没有权限查看审计日志",
-			"code":  "PERMISSION_DENIED",
+			"error":   "没有权限查看审计日志",
+			"code":    "PERMISSION_DENIED",
 			"details": hasPermission.DenialReason,
 		})
 		return
@@ -1091,27 +1092,27 @@ func GetPermissionAuditLogs(c *gin.Context) {
 
 	// 获取日志记录
 	var logs []struct {
-		ID                uuid.UUID `json:"id"`
-		SafeID            uuid.UUID `json:"safe_id"`
-		UserID            uuid.UUID `json:"user_id"`
-		Action            string    `json:"action"`
-		ResourceType      string    `json:"resource_type"`
-		ResourceID        *uuid.UUID `json:"resource_id"`
-		PermissionGranted bool      `json:"permission_granted"`
-		RequiredPermission *string   `json:"required_permission"`
-		UserRole          *string   `json:"user_role"`
-		DenialReason      *string   `json:"denial_reason"`
-		RequestContext    string    `json:"request_context"`
-		IPAddress         *string   `json:"ip_address"`
-		UserAgent         *string   `json:"user_agent"`
-		CreatedAt         string    `json:"created_at"`
+		ID                 uuid.UUID  `json:"id"`
+		SafeID             uuid.UUID  `json:"safe_id"`
+		UserID             uuid.UUID  `json:"user_id"`
+		Action             string     `json:"action"`
+		ResourceType       string     `json:"resource_type"`
+		ResourceID         *uuid.UUID `json:"resource_id"`
+		PermissionGranted  bool       `json:"permission_granted"`
+		RequiredPermission *string    `json:"required_permission"`
+		UserRole           *string    `json:"user_role"`
+		DenialReason       *string    `json:"denial_reason"`
+		RequestContext     string     `json:"request_context"`
+		IPAddress          *string    `json:"ip_address"`
+		UserAgent          *string    `json:"user_agent"`
+		CreatedAt          string     `json:"created_at"`
 	}
 
 	err = query.Order("created_at DESC").Offset(offset).Limit(limit).Find(&logs).Error
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "获取审计日志失败",
-			"code":  "GET_AUDIT_LOGS_FAILED",
+			"error":   "获取审计日志失败",
+			"code":    "GET_AUDIT_LOGS_FAILED",
 			"details": err.Error(),
 		})
 		return

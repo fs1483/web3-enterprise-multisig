@@ -2,8 +2,8 @@
 // 权限管理服务层
 // 版本: v2.0
 // 功能: 提供企业级多签系统的权限验证和管理服务
-// 作者: Cascade AI
-// 创建时间: 2025-09-16
+// 作者: sfan
+// 创建时间: 2024-09-16
 // =====================================================
 
 package services
@@ -57,27 +57,27 @@ type PermissionResult struct {
 
 // SafeRole Safe角色信息
 type SafeRole struct {
-	ID             uuid.UUID              `json:"id"`
-	SafeID         uuid.UUID              `json:"safe_id"`
-	UserID         uuid.UUID              `json:"user_id"`
-	UserEmail      string                 `json:"user_email"`      // 用户邮箱
-	UserName       string                 `json:"user_name"`       // 用户名
-	WalletAddress  string                 `json:"wallet_address"`
-	Role           string                 `json:"role"`
-	RoleLevel      int                    `json:"role_level"`
-	Permissions    map[string]bool        `json:"permissions"`
-	Restrictions   map[string]interface{} `json:"restrictions"`
-	IsActive       bool                   `json:"is_active"`
-	AssignedBy     uuid.UUID              `json:"assigned_by"`
-	AssignedAt     time.Time              `json:"assigned_at"`
-	ExpiresAt      *time.Time             `json:"expires_at"`
+	ID            uuid.UUID              `json:"id"`
+	SafeID        uuid.UUID              `json:"safe_id"`
+	UserID        uuid.UUID              `json:"user_id"`
+	UserEmail     string                 `json:"user_email"` // 用户邮箱
+	UserName      string                 `json:"user_name"`  // 用户名
+	WalletAddress string                 `json:"wallet_address"`
+	Role          string                 `json:"role"`
+	RoleLevel     int                    `json:"role_level"`
+	Permissions   map[string]bool        `json:"permissions"`
+	Restrictions  map[string]interface{} `json:"restrictions"`
+	IsActive      bool                   `json:"is_active"`
+	AssignedBy    uuid.UUID              `json:"assigned_by"`
+	AssignedAt    time.Time              `json:"assigned_at"`
+	ExpiresAt     *time.Time             `json:"expires_at"`
 }
 
 // CheckPermission 检查用户权限 - 核心权限验证方法
 func (s *PermissionService) CheckPermission(ctx context.Context, req PermissionRequest) (*PermissionResult, error) {
-	fmt.Printf("🔍 CheckPermission: 开始权限检查 - 用户ID: %s, SafeID: %s, 权限代码: %s\n", 
+	fmt.Printf("🔍 CheckPermission: 开始权限检查 - 用户ID: %s, SafeID: %s, 权限代码: %s\n",
 		req.UserID, req.SafeID, req.PermissionCode)
-	
+
 	result := &PermissionResult{
 		UserID:         req.UserID,
 		SafeID:         req.SafeID,
@@ -159,18 +159,18 @@ func (s *PermissionService) CheckPermission(ctx context.Context, req PermissionR
 // GetUserSafeRole 获取用户在Safe中的角色
 func (s *PermissionService) GetUserSafeRole(ctx context.Context, userID, safeID uuid.UUID) (*SafeRole, error) {
 	var roleRecord struct {
-		ID             uuid.UUID  `gorm:"column:id"`
-		SafeID         uuid.UUID  `gorm:"column:safe_id"`
-		UserID         uuid.UUID  `gorm:"column:user_id"`
-		WalletAddress  string     `gorm:"column:wallet_address"`
-		Role           string     `gorm:"column:role"`
-		RoleLevel      int        `gorm:"column:role_level"`
-		Permissions    string     `gorm:"column:permissions"`
-		Restrictions   string     `gorm:"column:restrictions"`
-		IsActive       bool       `gorm:"column:is_active"`
-		AssignedBy     uuid.UUID  `gorm:"column:assigned_by"`
-		AssignedAt     time.Time  `gorm:"column:assigned_at"`
-		ExpiresAt      *time.Time `gorm:"column:expires_at"`
+		ID            uuid.UUID  `gorm:"column:id"`
+		SafeID        uuid.UUID  `gorm:"column:safe_id"`
+		UserID        uuid.UUID  `gorm:"column:user_id"`
+		WalletAddress string     `gorm:"column:wallet_address"`
+		Role          string     `gorm:"column:role"`
+		RoleLevel     int        `gorm:"column:role_level"`
+		Permissions   string     `gorm:"column:permissions"`
+		Restrictions  string     `gorm:"column:restrictions"`
+		IsActive      bool       `gorm:"column:is_active"`
+		AssignedBy    uuid.UUID  `gorm:"column:assigned_by"`
+		AssignedAt    time.Time  `gorm:"column:assigned_at"`
+		ExpiresAt     *time.Time `gorm:"column:expires_at"`
 	}
 
 	err := s.db.WithContext(ctx).
@@ -196,18 +196,18 @@ func (s *PermissionService) GetUserSafeRole(ctx context.Context, userID, safeID 
 	}
 
 	return &SafeRole{
-		ID:             roleRecord.ID,
-		SafeID:         roleRecord.SafeID,
-		UserID:         roleRecord.UserID,
-		WalletAddress:  roleRecord.WalletAddress,
-		Role:           roleRecord.Role,
-		RoleLevel:      roleRecord.RoleLevel,
-		Permissions:    permissions,
-		Restrictions:   restrictions,
-		IsActive:       roleRecord.IsActive,
-		AssignedBy:     roleRecord.AssignedBy,
-		AssignedAt:     roleRecord.AssignedAt,
-		ExpiresAt:      roleRecord.ExpiresAt,
+		ID:            roleRecord.ID,
+		SafeID:        roleRecord.SafeID,
+		UserID:        roleRecord.UserID,
+		WalletAddress: roleRecord.WalletAddress,
+		Role:          roleRecord.Role,
+		RoleLevel:     roleRecord.RoleLevel,
+		Permissions:   permissions,
+		Restrictions:  restrictions,
+		IsActive:      roleRecord.IsActive,
+		AssignedBy:    roleRecord.AssignedBy,
+		AssignedAt:    roleRecord.AssignedAt,
+		ExpiresAt:     roleRecord.ExpiresAt,
 	}, nil
 }
 
@@ -282,7 +282,7 @@ func (s *PermissionService) AssignSafeRole(ctx context.Context, safeID, userID, 
 				"updated_at":   time.Now(),
 				"is_active":    true, // 确保角色是激活状态
 			}
-			
+
 			if err := tx.Table("safe_member_roles").
 				Where("user_id = ? AND safe_id = ?", userID, safeID).
 				Updates(updateData).Error; err != nil {
@@ -318,7 +318,7 @@ func (s *PermissionService) AssignSafeRole(ctx context.Context, safeID, userID, 
 // 私有辅助方法
 func (s *PermissionService) checkSystemPermission(ctx context.Context, userID uuid.UUID, permissionCode string) (bool, string, error) {
 	fmt.Printf("🔍 checkSystemPermission: 检查用户 %s 的系统权限\n", userID)
-	
+
 	var user models.User
 	err := s.db.WithContext(ctx).First(&user, userID).Error
 	if err != nil {
@@ -422,7 +422,7 @@ func (s *PermissionService) getDefaultRolePermission(role, permissionCode string
 	// 从权限模板服务获取角色权限（消除重复定义）
 	templateService := NewPermissionTemplateService(s.db)
 	roleTemplates := templateService.GetSafeRoleTemplates()
-	
+
 	// 查找对应的角色模板
 	for _, template := range roleTemplates {
 		if template.ID == role {
@@ -435,7 +435,7 @@ func (s *PermissionService) getDefaultRolePermission(role, permissionCode string
 			return false
 		}
 	}
-	
+
 	return false
 }
 
@@ -443,7 +443,7 @@ func (s *PermissionService) getRoleLevel(role string) int {
 	// 从权限模板服务获取角色级别（消除重复定义）
 	templateService := NewPermissionTemplateService(s.db)
 	roleTemplates := templateService.GetSafeRoleTemplates()
-	
+
 	// 定义角色级别映射（与角色配置中保持一致）
 	roleLevels := map[string]int{
 		"safe_admin":     1,
@@ -452,7 +452,7 @@ func (s *PermissionService) getRoleLevel(role string) int {
 		"safe_viewer":    4,
 		"safe_auditor":   5,
 	}
-	
+
 	// 查找对应的角色模板
 	for _, template := range roleTemplates {
 		if template.ID == role {
@@ -461,7 +461,7 @@ func (s *PermissionService) getRoleLevel(role string) int {
 			}
 		}
 	}
-	
+
 	return 10 // 默认最低级别
 }
 
@@ -474,16 +474,16 @@ func (s *PermissionService) logPermissionCheck(ctx context.Context, req Permissi
 	}
 
 	logRecord := map[string]interface{}{
-		"id":                 uuid.New(),
-		"user_id":            req.UserID,
-		"action":             "check_permission",
-		"resource_type":      "permission",
-		"permission_granted": result.Granted,
+		"id":                  uuid.New(),
+		"user_id":             req.UserID,
+		"action":              "check_permission",
+		"resource_type":       "permission",
+		"permission_granted":  result.Granted,
 		"required_permission": req.PermissionCode,
-		"user_role":          result.Role,
-		"denial_reason":      result.DenialReason,
-		"request_context":    contextJSON,
-		"created_at":         time.Now(),
+		"user_role":           result.Role,
+		"denial_reason":       result.DenialReason,
+		"request_context":     contextJSON,
+		"created_at":          time.Now(),
 	}
 
 	// 只有当SafeID不为空UUID时才设置safe_id字段
@@ -500,20 +500,20 @@ func (s *PermissionService) logPermissionCheck(ctx context.Context, req Permissi
 func (s *PermissionService) GetSafeMembers(ctx context.Context, safeID uuid.UUID) ([]SafeRole, error) {
 	fmt.Printf("🔍 GetSafeMembers: 开始获取Safe成员列表, SafeID: %s\n", safeID.String())
 	var roleRecords []struct {
-		ID             uuid.UUID  `gorm:"column:id"`
-		SafeID         uuid.UUID  `gorm:"column:safe_id"`
-		UserID         uuid.UUID  `gorm:"column:user_id"`
-		UserEmail      string     `gorm:"column:user_email"`
-		UserName       string     `gorm:"column:user_name"`
-		WalletAddress  string     `gorm:"column:wallet_address"`
-		Role           string     `gorm:"column:role"`
-		RoleLevel      int        `gorm:"column:role_level"`
-		Permissions    string     `gorm:"column:permissions"`
-		Restrictions   string     `gorm:"column:restrictions"`
-		IsActive       bool       `gorm:"column:is_active"`
-		AssignedBy     uuid.UUID  `gorm:"column:assigned_by"`
-		AssignedAt     time.Time  `gorm:"column:assigned_at"`
-		ExpiresAt      *time.Time `gorm:"column:expires_at"`
+		ID            uuid.UUID  `gorm:"column:id"`
+		SafeID        uuid.UUID  `gorm:"column:safe_id"`
+		UserID        uuid.UUID  `gorm:"column:user_id"`
+		UserEmail     string     `gorm:"column:user_email"`
+		UserName      string     `gorm:"column:user_name"`
+		WalletAddress string     `gorm:"column:wallet_address"`
+		Role          string     `gorm:"column:role"`
+		RoleLevel     int        `gorm:"column:role_level"`
+		Permissions   string     `gorm:"column:permissions"`
+		Restrictions  string     `gorm:"column:restrictions"`
+		IsActive      bool       `gorm:"column:is_active"`
+		AssignedBy    uuid.UUID  `gorm:"column:assigned_by"`
+		AssignedAt    time.Time  `gorm:"column:assigned_at"`
+		ExpiresAt     *time.Time `gorm:"column:expires_at"`
 	}
 
 	err := s.db.WithContext(ctx).
@@ -546,30 +546,30 @@ func (s *PermissionService) GetSafeMembers(ctx context.Context, safeID uuid.UUID
 		}
 
 		members = append(members, SafeRole{
-			ID:             record.ID,
-			SafeID:         record.SafeID,
-			UserID:         record.UserID,
-			UserEmail:      record.UserEmail,
-			UserName:       record.UserName,
-			WalletAddress:  record.WalletAddress,
-			Role:           record.Role,
-			RoleLevel:      record.RoleLevel,
-			Permissions:    permissions,
-			Restrictions:   restrictions,
-			IsActive:       record.IsActive,
-			AssignedBy:     record.AssignedBy,
-			AssignedAt:     record.AssignedAt,
-			ExpiresAt:      record.ExpiresAt,
+			ID:            record.ID,
+			SafeID:        record.SafeID,
+			UserID:        record.UserID,
+			UserEmail:     record.UserEmail,
+			UserName:      record.UserName,
+			WalletAddress: record.WalletAddress,
+			Role:          record.Role,
+			RoleLevel:     record.RoleLevel,
+			Permissions:   permissions,
+			Restrictions:  restrictions,
+			IsActive:      record.IsActive,
+			AssignedBy:    record.AssignedBy,
+			AssignedAt:    record.AssignedAt,
+			ExpiresAt:     record.ExpiresAt,
 		})
 	}
 
 	// 获取Safe的区块链所有者信息
 	var safe models.Safe
-	
+
 	err = s.db.WithContext(ctx).
 		Where("id = ?", safeID).
 		First(&safe).Error
-	
+
 	if err != nil {
 		fmt.Printf("❌ GetSafeMembers: 查询Safe信息失败: %v\n", err)
 		return nil, fmt.Errorf("获取Safe信息失败: %w", err)
@@ -591,7 +591,7 @@ func (s *PermissionService) GetSafeMembers(ctx context.Context, safeID uuid.UUID
 		if ownerAddress == "" {
 			continue
 		}
-		
+
 		// 检查是否已经存在
 		if existingWallets[strings.ToLower(ownerAddress)] {
 			continue
@@ -604,14 +604,14 @@ func (s *PermissionService) GetSafeMembers(ctx context.Context, safeID uuid.UUID
 			Username      string    `gorm:"column:username"`
 			WalletAddress *string   `gorm:"column:wallet_address"`
 		}
-		
+
 		// 先尝试精确匹配
 		err := s.db.WithContext(ctx).
 			Table("users").
 			Select("id, email, username, wallet_address").
 			Where("wallet_address = ?", ownerAddress).
 			First(&user).Error
-		
+
 		// 如果精确匹配失败，尝试大小写不敏感匹配
 		if err != nil {
 			err = s.db.WithContext(ctx).
@@ -620,10 +620,10 @@ func (s *PermissionService) GetSafeMembers(ctx context.Context, safeID uuid.UUID
 				Where("LOWER(wallet_address) = LOWER(?)", ownerAddress).
 				First(&user).Error
 		}
-		
+
 		fmt.Printf("🔍 查找用户: 钱包地址=%s, 查询结果: %v\n", ownerAddress, err)
 		if err == nil {
-			fmt.Printf("✅ 找到用户: ID=%s, Email=%s, Username=%s, WalletAddress=%v\n", 
+			fmt.Printf("✅ 找到用户: ID=%s, Email=%s, Username=%s, WalletAddress=%v\n",
 				user.ID, user.Email, user.Username, user.WalletAddress)
 		}
 
@@ -664,14 +664,14 @@ func (s *PermissionService) GetSafeMembers(ctx context.Context, safeID uuid.UUID
 
 // RoleConfiguration 角色配置结构
 type RoleConfiguration struct {
-	Role        string                 `json:"role"`
-	Name        string                 `json:"name"`
-	Description string                 `json:"description"`
-	Color       string                 `json:"color"`
-	RoleLevel   int                    `json:"role_level"`
-	Permissions []string               `json:"permissions"`
-	IsSystem    bool                   `json:"is_system"`
-	CreatedAt   time.Time              `json:"created_at"`
+	Role        string    `json:"role"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	Color       string    `json:"color"`
+	RoleLevel   int       `json:"role_level"`
+	Permissions []string  `json:"permissions"`
+	IsSystem    bool      `json:"is_system"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 // GetSafeRoleConfigurations 获取Safe的角色配置
@@ -704,10 +704,10 @@ func (s *PermissionService) getActualSystemRoles(ctx context.Context, safeID uui
 	err := s.db.WithContext(ctx).
 		Table("safe_member_roles").
 		Select("DISTINCT role").
-		Where("safe_id = ? AND is_active = ? AND role IN (?)", 
+		Where("safe_id = ? AND is_active = ? AND role IN (?)",
 			safeID, true, []string{"safe_admin", "safe_treasurer", "safe_operator", "safe_viewer"}).
 		Pluck("role", &usedSystemRoles).Error
-	
+
 	if err != nil {
 		return nil, fmt.Errorf("查询实际使用的系统角色失败: %w", err)
 	}
@@ -720,15 +720,15 @@ func (s *PermissionService) getActualSystemRoles(ctx context.Context, safeID uui
 	// 从权限模板服务获取系统角色的详细信息
 	templateService := NewPermissionTemplateService(s.db)
 	roleTemplates := templateService.GetSafeRoleTemplates()
-	
+
 	// 定义角色颜色和级别映射
 	roleColors := map[string]string{
 		"safe_admin":     "red",
-		"safe_treasurer": "blue", 
+		"safe_treasurer": "blue",
 		"safe_operator":  "green",
 		"safe_viewer":    "gray",
 	}
-	
+
 	roleLevels := map[string]int{
 		"safe_admin":     1,
 		"safe_treasurer": 2,
@@ -737,7 +737,7 @@ func (s *PermissionService) getActualSystemRoles(ctx context.Context, safeID uui
 	}
 
 	var actualRoles []RoleConfiguration
-	
+
 	// 只返回实际使用的系统角色
 	for _, usedRole := range usedSystemRoles {
 		for _, template := range roleTemplates {
@@ -765,11 +765,11 @@ func (s *PermissionService) getActualSystemRoles(ctx context.Context, safeID uui
 func (s *PermissionService) getCustomRoles(ctx context.Context, safeID uuid.UUID) ([]RoleConfiguration, error) {
 	// 查询该Safe的所有自定义角色（不在预设角色列表中的角色）
 	systemRoles := []string{"safe_admin", "safe_treasurer", "safe_operator", "safe_viewer"}
-	
+
 	var roleRecords []struct {
-		Role            string    `json:"role"`
-		PermissionCode  string    `json:"permission_code"`
-		CreatedAt       time.Time `json:"created_at"`
+		Role           string    `json:"role"`
+		PermissionCode string    `json:"permission_code"`
+		CreatedAt      time.Time `json:"created_at"`
 	}
 
 	query := s.db.WithContext(ctx).
@@ -913,7 +913,7 @@ func (s *PermissionService) CreateCustomRole(ctx context.Context, req CreateCust
 		Select("id").
 		Where("safe_id = ? AND role = ?", req.SafeID, req.Role).
 		First(&existingRole).Error
-	
+
 	if err == nil {
 		return fmt.Errorf("角色 %s 已存在", req.Role)
 	}
@@ -931,7 +931,7 @@ func (s *PermissionService) CreateCustomRole(ctx context.Context, req CreateCust
 			Select("code").
 			Where("code = ? AND is_system = true", permCode).
 			First(&permDef).Error
-		
+
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return fmt.Errorf("权限代码 %s 不存在", permCode)
 		}
@@ -997,7 +997,7 @@ func (s *PermissionService) UpdateRolePermissions(ctx context.Context, req Updat
 		Select("id").
 		Where("safe_id = ? AND role = ?", req.SafeID, req.Role).
 		Find(&existingPerms).Error
-	
+
 	if err != nil {
 		return fmt.Errorf("查询现有角色权限失败: %w", err)
 	}
@@ -1016,7 +1016,7 @@ func (s *PermissionService) UpdateRolePermissions(ctx context.Context, req Updat
 			Select("code").
 			Where("code = ? AND is_system = true", permCode).
 			First(&permDef).Error
-		
+
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return fmt.Errorf("权限代码 %s 不存在", permCode)
 		}
@@ -1067,7 +1067,7 @@ func (s *PermissionService) DeleteCustomRole(ctx context.Context, safeID uuid.UU
 		Table("safe_member_roles").
 		Where("safe_id = ? AND role = ? AND is_active = ?", safeID, role, true).
 		Count(&memberCount).Error
-	
+
 	if err != nil {
 		return fmt.Errorf("检查角色使用情况失败: %w", err)
 	}

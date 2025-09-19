@@ -2,8 +2,8 @@
 // Safe自定义角色管理组件
 // 版本: v1.0
 // 功能: 创建和管理Safe级自定义角色
-// 作者: Cascade AI
-// 创建时间: 2025-09-18
+// 作者: sfan
+// 创建时间: 2024-09-18
 // =====================================================
 
 import React, { useState, useEffect } from 'react';
@@ -15,11 +15,13 @@ import { Badge } from './ui/Badge';
 import { useAuthStore } from '../stores/authStore';
 import { 
   Plus,
-  Edit,
+  Edit3,
   Trash2,
   AlertCircle,
   Shield,
-  Settings
+  Settings,
+  X,
+  Save
 } from 'lucide-react';
 
 // =====================================================
