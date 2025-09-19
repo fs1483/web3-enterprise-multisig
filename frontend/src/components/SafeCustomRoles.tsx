@@ -14,16 +14,12 @@ import { Input } from './ui/Input';
 import { Badge } from './ui/Badge';
 import { useAuthStore } from '../stores/authStore';
 import { 
-  Settings, 
-  Plus, 
-  Edit3, 
-  Trash2, 
-  Shield, 
-  Users,
-  CheckCircle,
+  Plus,
+  Edit,
+  Trash2,
   AlertCircle,
-  Save,
-  X
+  Shield,
+  Settings
 } from 'lucide-react';
 
 // =====================================================

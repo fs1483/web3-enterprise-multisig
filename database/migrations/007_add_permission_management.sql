@@ -241,37 +241,46 @@ CREATE INDEX IF NOT EXISTS idx_permission_audit_created_at ON permission_audit_l
 -- =====================================================
 
 -- Safe基础权限
-INSERT INTO permission_definitions (code, name, description, category, scope, is_system) VALUES
--- Safe信息权限
-('safe.info.view', '查看Safe信息', '查看Safe基本信息、余额、成员列表等', 'safe', 'safe', true),
-('safe.info.manage', '管理Safe设置', '修改Safe名称、描述等基本设置', 'safe', 'safe', true),
-('safe.info.delete', '删除Safe', '删除Safe钱包（危险操作）', 'safe', 'safe', true),
+-- INSERT INTO permission_definitions (code, name, description, category, scope, is_system) VALUES
+-- -- Safe信息权限
+-- ('safe.info.view', '查看Safe信息', '查看Safe基本信息、余额、成员列表等', 'safe', 'safe', true),
+-- ('safe.info.manage', '管理Safe设置', '修改Safe名称、描述等基本设置', 'safe', 'safe', true),
+-- ('safe.info.delete', '删除Safe', '删除Safe钱包（危险操作）', 'safe', 'safe', true),
 
--- 提案相关权限
-('safe.proposal.view', '查看提案', '查看Safe中的所有提案', 'proposal', 'safe', true),
-('safe.proposal.create', '创建提案', '创建新的提案', 'proposal', 'operation', true),
-('safe.proposal.edit', '编辑提案', '编辑未执行的提案', 'proposal', 'operation', true),
-('safe.proposal.delete', '删除提案', '删除未执行的提案', 'proposal', 'operation', true),
-('safe.proposal.sign', '签名提案', '对提案进行签名确认', 'proposal', 'operation', true),
-('safe.proposal.execute', '执行提案', '执行已获得足够签名的提案', 'proposal', 'operation', true),
+-- -- 提案相关权限
+-- ('safe.proposal.view', '查看提案', '查看Safe中的所有提案', 'proposal', 'safe', true),
+-- ('safe.proposal.create', '创建提案', '创建新的提案', 'proposal', 'operation', true),
+-- ('safe.proposal.edit', '编辑提案', '编辑未执行的提案', 'proposal', 'operation', true),
+-- ('safe.proposal.delete', '删除提案', '删除未执行的提案', 'proposal', 'operation', true),
+-- ('safe.proposal.sign', '签名提案', '对提案进行签名确认', 'proposal', 'operation', true),
+-- ('safe.proposal.execute', '执行提案', '执行已获得足够签名的提案', 'proposal', 'operation', true),
 
--- 按提案类型细分的创建权限
-('safe.proposal.create.transfer', '创建转账提案', '创建ETH或代币转账提案', 'proposal', 'operation', true),
-('safe.proposal.create.contract', '创建合约调用提案', '创建智能合约交互提案', 'proposal', 'operation', true),
-('safe.proposal.create.governance', '创建治理提案', '创建Safe治理相关提案（如添加/移除成员、修改阈值）', 'proposal', 'operation', true),
+-- -- 按提案类型细分的创建权限
+-- ('safe.proposal.create.transfer', '创建转账提案', '创建ETH或代币转账提案', 'proposal', 'operation', true),
+-- ('safe.proposal.create.contract', '创建合约调用提案', '创建智能合约交互提案', 'proposal', 'operation', true),
+-- ('safe.proposal.create.governance', '创建治理提案', '创建Safe治理相关提案（如添加/移除成员、修改阈值）', 'proposal', 'operation', true),
 
--- 成员管理权限
-('safe.member.view', '查看成员', '查看Safe成员列表和角色信息', 'member', 'safe', true),
-('safe.member.invite', '邀请成员', '邀请新成员加入Safe', 'member', 'operation', true),
-('safe.member.remove', '移除成员', '从Safe中移除成员', 'member', 'operation', true),
-('safe.member.assign_role', '分配角色', '为Safe成员分配或修改角色', 'member', 'operation', true),
+-- -- 成员管理权限
+-- ('safe.member.view', '查看成员', '查看Safe成员列表和角色信息', 'member', 'safe', true),
+-- ('safe.member.invite', '邀请成员', '邀请新成员加入Safe', 'member', 'operation', true),
+-- ('safe.member.remove', '移除成员', '从Safe中移除成员', 'member', 'operation', true),
+-- ('safe.member.assign_role', '分配角色', '为Safe成员分配或修改角色', 'member', 'operation', true),
 
--- 策略管理权限
-('safe.policy.view', '查看策略', '查看Safe的治理策略配置', 'policy', 'safe', true),
-('safe.policy.create', '创建策略', '创建新的治理策略', 'policy', 'operation', true),
-('safe.policy.edit', '编辑策略', '修改现有的治理策略', 'policy', 'operation', true),
-('safe.policy.delete', '删除策略', '删除治理策略', 'policy', 'operation', true),
-('safe.policy.activate', '激活策略', '激活或停用治理策略', 'policy', 'operation', true);
+-- -- 策略管理权限
+-- ('safe.policy.view', '查看策略', '查看Safe的治理策略配置', 'policy', 'safe', true),
+-- ('safe.policy.create', '创建策略', '创建新的治理策略', 'policy', 'operation', true),
+-- ('safe.policy.edit', '编辑策略', '修改现有的治理策略', 'policy', 'operation', true),
+-- ('safe.policy.delete', '删除策略', '删除治理策略', 'policy', 'operation', true),
+-- ('safe.policy.activate', '激活策略', '激活或停用治理策略', 'policy', 'operation', true);
+
+-- 继续插入系统级权限
+-- INSERT INTO permission_definitions (code, name, description, category, scope, is_system) VALUES
+-- -- 系统级权限
+-- ('system.admin.full', '系统管理员', '系统完全管理权限', 'system', 'system', true),
+-- ('system.audit.view', '审计查看', '查看系统审计日志', 'system', 'system', true),
+-- ('system.user.manage', '用户管理', '管理系统用户', 'system', 'system', true);
+
+
 
 -- =====================================================
 -- 扩展权限定义表，添加映射字段
@@ -316,12 +325,7 @@ CREATE INDEX IF NOT EXISTS idx_permission_parent ON permission_definitions(paren
 -- ADD CONSTRAINT IF NOT EXISTS check_display_order_valid 
 -- CHECK (display_order >= 0);
 
--- 继续插入系统级权限
-INSERT INTO permission_definitions (code, name, description, category, scope, is_system) VALUES
--- 系统级权限
-('system.admin.full', '系统管理员', '系统完全管理权限', 'system', 'system', true),
-('system.audit.view', '审计查看', '查看系统审计日志', 'system', 'system', true),
-('system.user.manage', '用户管理', '管理系统用户', 'system', 'system', true);
+
 
 -- =====================================================
 -- 插入默认角色权限配置

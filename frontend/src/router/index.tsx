@@ -18,7 +18,9 @@ import PermissionManagement from '../components/PermissionManagement';
 import UnifiedPermissionManagement from '../components/UnifiedPermissionManagement';
 import PolicyManagement from '../components/PolicyManagement';
 import { PoliciesPage } from '../pages/policies/PoliciesPage';
-import UserSettings from '../components/UserSettings';
+import { SettingsPage } from '../pages/SettingsPage';
+import { AnalyticsPage } from '../pages/AnalyticsPage';
+import { TeamPage } from '../pages/TeamPage';
 import AdminManagement from '../components/AdminManagement';
 
 interface ProtectedRouteProps {
@@ -122,10 +124,7 @@ export const AppRouter: React.FC = () => {
           path="/analytics"
           element={
             <ProtectedRoute>
-              <div className="p-8 text-center">
-                <h1 className="text-2xl font-bold">Analytics</h1>
-                <p className="text-gray-600 mt-2">Coming soon...</p>
-              </div>
+              <AnalyticsPage />
             </ProtectedRoute>
           }
         />
@@ -133,10 +132,7 @@ export const AppRouter: React.FC = () => {
           path="/team"
           element={
             <ProtectedRoute>
-              <div className="p-8 text-center">
-                <h1 className="text-2xl font-bold">Team Management</h1>
-                <p className="text-gray-600 mt-2">Coming soon...</p>
-              </div>
+              <TeamPage />
             </ProtectedRoute>
           }
         />
@@ -152,7 +148,7 @@ export const AppRouter: React.FC = () => {
           path="/settings"
           element={
             <ProtectedRoute>
-              <UserSettings />
+              <SettingsPage />
             </ProtectedRoute>
           }
         />
