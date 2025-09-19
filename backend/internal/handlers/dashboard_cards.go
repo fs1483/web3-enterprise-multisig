@@ -50,17 +50,23 @@ type AssetOverviewCard struct {
 func GetDashboardCards(c *gin.Context) {
 	// 1. 获取用户ID（从JWT token中获取用户信息）
 	userID, exists := c.Get("userID")
+	fmt.Printf("Dashboard调试 - userID存在: %v\n", exists)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "用户未认证"})
 		return
 	}
 
+	fmt.Printf("Dashboard调试 - userID类型: %T, 值: %v\n", userID, userID)
+
 	// 解析用户UUID - JWT中间件存储的是uuid.UUID类型
 	userUUID, ok := userID.(uuid.UUID)
 	if !ok {
+		fmt.Printf("Dashboard调试 - userID类型转换失败: %T\n", userID)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "无效的用户ID格式"})
 		return
 	}
+
+	fmt.Printf("Dashboard调试 - 成功解析userUUID: %s\n", userUUID)
 
 	// 2. 并发获取两个卡片的数据
 	proposalChan := make(chan *ProposalCenterCard, 1)
@@ -138,6 +144,9 @@ func getProposalCenterData(userUUID uuid.UUID) (*ProposalCenterCard, error) {
 		return nil, fmt.Errorf("查询用户信息失败: %v", err)
 	}
 
+	// 调试日志：用户信息
+	fmt.Printf("Dashboard调试 - 用户信息: ID=%s, Role=%s, WalletAddress=%v\n", userUUID, user.Role, user.WalletAddress)
+
 	// 1. 查询需要用户签名的待处理提案（包括用户创建但还需要签名的提案）
 	var pendingProposals []models.Proposal
 	pendingQuery := database.DB.Model(&models.Proposal{}).
@@ -145,13 +154,19 @@ func getProposalCenterData(userUUID uuid.UUID) (*ProposalCenterCard, error) {
 		Joins("JOIN safes ON proposals.safe_id = safes.id").
 		Where("proposals.status = ?", "pending")
 
-	// 查询用户有权限签名的Safe中的提案
-	if user.WalletAddress != nil && *user.WalletAddress != "" {
-		// 用户作为owner的Safe中的提案 或 用户创建的Safe中的提案
-		pendingQuery = pendingQuery.Where("? = ANY(safes.owners) OR safes.created_by = ?", *user.WalletAddress, userUUID)
+	// 超级管理员可以查看所有提案，普通用户只能查看相关提案
+	if user.Role == "super_admin" {
+		// 超级管理员可以查看所有待处理提案，不需要额外过滤条件
+		fmt.Printf("Dashboard调试 - 超级管理员用户，查看所有待处理提案\n")
 	} else {
-		// 如果用户没有钱包地址，只查询用户创建的Safe中的提案
-		pendingQuery = pendingQuery.Where("safes.created_by = ?", userUUID)
+		// 查询用户有权限签名的Safe中的提案
+		if user.WalletAddress != nil && *user.WalletAddress != "" {
+			// 用户作为owner的Safe中的提案 或 用户创建的Safe中的提案
+			pendingQuery = pendingQuery.Where("? = ANY(safes.owners) OR safes.created_by = ?", *user.WalletAddress, userUUID)
+		} else {
+			// 如果用户没有钱包地址，只查询用户创建的Safe中的提案
+			pendingQuery = pendingQuery.Where("safes.created_by = ?", userUUID)
+		}
 	}
 
 	// 排除用户已经签名的提案
@@ -162,6 +177,9 @@ func getProposalCenterData(userUUID uuid.UUID) (*ProposalCenterCard, error) {
 	if err := pendingQuery.Find(&pendingProposals).Error; err != nil {
 		return nil, fmt.Errorf("查询待签名提案失败: %v", err)
 	}
+
+	// 调试日志：待处理提案数量
+	fmt.Printf("Dashboard调试 - 待处理提案数量: %d\n", len(pendingProposals))
 
 	// 2. 计算紧急提案数量（创建时间超过24小时）
 	urgentCount := 0
@@ -176,35 +194,49 @@ func getProposalCenterData(userUUID uuid.UUID) (*ProposalCenterCard, error) {
 	var confirmedProposals int64
 	var failedProposals int64
 
-	// 用户参与的Safe的所有提案 - 包括用户创建的提案和用户参与的Safe中的提案
-	totalQuery := database.DB.Model(&models.Proposal{}).
-		Joins("LEFT JOIN safes ON proposals.safe_id = safes.id").
-		Where("proposals.created_by = ?", userUUID)
-
-	// 如果用户有钱包地址，也查询用户作为owner的Safe中的提案
-	if user.WalletAddress != nil && *user.WalletAddress != "" {
-		totalQuery = totalQuery.Or("(safes.id IS NOT NULL AND ? = ANY(safes.owners))", *user.WalletAddress)
+	// 构建总提案查询
+	var totalQuery = database.DB.Model(&models.Proposal{})
+	if user.Role == "super_admin" {
+		// 超级管理员可以查看所有提案
+		fmt.Printf("Dashboard调试 - 超级管理员用户，查看所有提案统计\n")
 	} else {
-		// 如果用户没有钱包地址，也查询用户创建的Safe中的提案
-		totalQuery = totalQuery.Or("safes.created_by = ?", userUUID)
+		// 用户参与的Safe的所有提案 - 包括用户创建的提案和用户参与的Safe中的提案
+		totalQuery = totalQuery.
+			Joins("LEFT JOIN safes ON proposals.safe_id = safes.id").
+			Where("proposals.created_by = ?", userUUID)
+
+		// 如果用户有钱包地址，也查询用户作为owner的Safe中的提案
+		if user.WalletAddress != nil && *user.WalletAddress != "" {
+			totalQuery = totalQuery.Or("(safes.id IS NOT NULL AND ? = ANY(safes.owners))", *user.WalletAddress)
+		} else {
+			// 如果用户没有钱包地址，也查询用户创建的Safe中的提案
+			totalQuery = totalQuery.Or("safes.created_by = ?", userUUID)
+		}
 	}
 
 	if err := totalQuery.Count(&totalProposals).Error; err != nil {
 		return nil, fmt.Errorf("查询提案总数失败: %v", err)
 	}
 
-	// 执行成功的提案数量 - 需要重新构建查询，避免WHERE条件叠加
-	confirmedQuery := database.DB.Model(&models.Proposal{}).
-		Joins("LEFT JOIN safes ON proposals.safe_id = safes.id").
-		Where("proposals.status = ?", "confirmed").
-		Where("proposals.created_by = ?", userUUID)
+	// 调试日志：提案统计
+	fmt.Printf("Dashboard调试 - 提案统计: 总数=%d\n", totalProposals)
 
-	// 如果用户有钱包地址，也查询用户作为owner的Safe中的执行成功提案
-	if user.WalletAddress != nil && *user.WalletAddress != "" {
-		confirmedQuery = confirmedQuery.Or("(proposals.status = ? AND safes.id IS NOT NULL AND ? = ANY(safes.owners))", "confirmed", *user.WalletAddress)
+	// 执行成功的提案数量 - 需要重新构建查询，避免WHERE条件叠加
+	var confirmedQuery = database.DB.Model(&models.Proposal{}).Where("proposals.status = ?", "confirmed")
+	if user.Role == "super_admin" {
+		// 超级管理员可以查看所有执行成功的提案
 	} else {
-		// 如果用户没有钱包地址，也查询用户创建的Safe中的执行成功提案
-		confirmedQuery = confirmedQuery.Or("(proposals.status = ? AND safes.created_by = ?)", "confirmed", userUUID)
+		confirmedQuery = confirmedQuery.
+			Joins("LEFT JOIN safes ON proposals.safe_id = safes.id").
+			Where("proposals.created_by = ?", userUUID)
+
+		// 如果用户有钱包地址，也查询用户作为owner的Safe中的执行成功提案
+		if user.WalletAddress != nil && *user.WalletAddress != "" {
+			confirmedQuery = confirmedQuery.Or("(proposals.status = ? AND safes.id IS NOT NULL AND ? = ANY(safes.owners))", "confirmed", *user.WalletAddress)
+		} else {
+			// 如果用户没有钱包地址，也查询用户创建的Safe中的执行成功提案
+			confirmedQuery = confirmedQuery.Or("(proposals.status = ? AND safes.created_by = ?)", "confirmed", userUUID)
+		}
 	}
 
 	if err := confirmedQuery.Count(&confirmedProposals).Error; err != nil {
@@ -212,17 +244,21 @@ func getProposalCenterData(userUUID uuid.UUID) (*ProposalCenterCard, error) {
 	}
 
 	// 执行失败的提案数量
-	failedQuery := database.DB.Model(&models.Proposal{}).
-		Joins("LEFT JOIN safes ON proposals.safe_id = safes.id").
-		Where("proposals.status = ?", "failed").
-		Where("proposals.created_by = ?", userUUID)
-
-	// 如果用户有钱包地址，也查询用户作为owner的Safe中的执行失败提案
-	if user.WalletAddress != nil && *user.WalletAddress != "" {
-		failedQuery = failedQuery.Or("(proposals.status = ? AND safes.id IS NOT NULL AND ? = ANY(safes.owners))", "failed", *user.WalletAddress)
+	var failedQuery = database.DB.Model(&models.Proposal{}).Where("proposals.status = ?", "failed")
+	if user.Role == "super_admin" {
+		// 超级管理员可以查看所有执行失败的提案
 	} else {
-		// 如果用户没有钱包地址，也查询用户创建的Safe中的执行失败提案
-		failedQuery = failedQuery.Or("(proposals.status = ? AND safes.created_by = ?)", "failed", userUUID)
+		failedQuery = failedQuery.
+			Joins("LEFT JOIN safes ON proposals.safe_id = safes.id").
+			Where("proposals.created_by = ?", userUUID)
+
+		// 如果用户有钱包地址，也查询用户作为owner的Safe中的执行失败提案
+		if user.WalletAddress != nil && *user.WalletAddress != "" {
+			failedQuery = failedQuery.Or("(proposals.status = ? AND safes.id IS NOT NULL AND ? = ANY(safes.owners))", "failed", *user.WalletAddress)
+		} else {
+			// 如果用户没有钱包地址，也查询用户创建的Safe中的执行失败提案
+			failedQuery = failedQuery.Or("(proposals.status = ? AND safes.created_by = ?)", "failed", userUUID)
+		}
 	}
 
 	if err := failedQuery.Count(&failedProposals).Error; err != nil {
@@ -246,6 +282,9 @@ func getProposalCenterData(userUUID uuid.UUID) (*ProposalCenterCard, error) {
 		ApprovalRate:      approvalRate,
 	}
 
+	// 调试日志：最终数据
+	fmt.Printf("Dashboard调试 - 提案中心数据: %+v\n", proposalCard)
+
 	return proposalCard, nil
 }
 
@@ -259,18 +298,31 @@ func getAssetOverviewData(userUUID uuid.UUID) (*AssetOverviewCard, error) {
 		return nil, fmt.Errorf("查询用户信息失败: %v", err)
 	}
 
+	// 调试日志：资产概况用户信息
+	fmt.Printf("Dashboard调试 - 资产概况用户信息: ID=%s, Role=%s, WalletAddress=%v\n", userUUID, user.Role, user.WalletAddress)
+
 	// 1. 查询用户的所有Safe - 包括用户创建的和用户参与的
 	var safes []models.Safe
-	safeQuery := database.DB.Where("created_by = ?", userUUID)
+	var safeQuery = database.DB.Model(&models.Safe{})
 	
-	// 如果用户有钱包地址，也查询用户作为owner的Safe
-	if user.WalletAddress != nil && *user.WalletAddress != "" {
-		safeQuery = safeQuery.Or("? = ANY(owners)", *user.WalletAddress)
+	if user.Role == "super_admin" {
+		// 超级管理员可以查看所有Safe
+		fmt.Printf("Dashboard调试 - 超级管理员用户，查看所有Safe\n")
+	} else {
+		safeQuery = safeQuery.Where("created_by = ?", userUUID)
+		
+		// 如果用户有钱包地址，也查询用户作为owner的Safe
+		if user.WalletAddress != nil && *user.WalletAddress != "" {
+			safeQuery = safeQuery.Or("? = ANY(owners)", *user.WalletAddress)
+		}
 	}
 	
 	if err := safeQuery.Find(&safes).Error; err != nil {
 		return nil, fmt.Errorf("查询用户Safe列表失败: %v", err)
 	}
+
+	// 调试日志：Safe数量
+	fmt.Printf("Dashboard调试 - 用户Safe数量: %d\n", len(safes))
 
 	// 2. 获取ETH总余额
 	totalETH, err := getTotalETHBalance(safes)
@@ -285,6 +337,9 @@ func getAssetOverviewData(userUUID uuid.UUID) (*AssetOverviewCard, error) {
 		TotalETH:  totalETH,
 		SafeCount: len(safes),
 	}
+
+	// 调试日志：最终资产数据
+	fmt.Printf("Dashboard调试 - 资产概况数据: %+v\n", assetCard)
 
 	return assetCard, nil
 }
@@ -394,10 +449,15 @@ func GetPendingProposals(c *gin.Context) {
 		Where("proposals.status = ?", "pending")
 
 	// 根据用户权限过滤提案
-	if user.WalletAddress != nil && *user.WalletAddress != "" {
-		query = query.Where("? = ANY(safes.owners) OR safes.created_by = ?", *user.WalletAddress, userUUID)
+	if user.Role == "super_admin" {
+		// 超级管理员可以查看所有待处理提案，不需要额外过滤
+		fmt.Printf("Dashboard调试 - 超级管理员用户，查看所有待处理提案\n")
 	} else {
-		query = query.Where("safes.created_by = ?", userUUID)
+		if user.WalletAddress != nil && *user.WalletAddress != "" {
+			query = query.Where("? = ANY(safes.owners) OR safes.created_by = ?", *user.WalletAddress, userUUID)
+		} else {
+			query = query.Where("safes.created_by = ?", userUUID)
+		}
 	}
 
 	// 排除用户已签名的提案

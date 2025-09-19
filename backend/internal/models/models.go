@@ -126,3 +126,39 @@ func (p *Proposal) IsApproved() bool {
 func (p *Proposal) CanExecute() bool {
 	return p.Status == "approved" && p.IsApproved()
 }
+
+// UserCustomPermission 用户自定义权限模型
+type UserCustomPermission struct {
+	ID             uuid.UUID  `json:"id" gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
+	SafeID         *uuid.UUID `json:"safe_id" gorm:"index"` // 允许为NULL，表示系统级权限
+	UserID         uuid.UUID  `json:"user_id" gorm:"not null"`
+	PermissionCode string     `json:"permission_code" gorm:"size:100;not null"`
+	Granted        bool       `json:"granted" gorm:"default:true"`
+	Restrictions   string     `json:"restrictions" gorm:"type:jsonb;default:'{}'"`
+	ExpiresAt      *time.Time `json:"expires_at"`
+	GrantedBy      uuid.UUID  `json:"granted_by" gorm:"not null"`
+	GrantedReason  *string    `json:"granted_reason"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
+
+	// 关联关系
+	Safe          *Safe `json:"safe,omitempty" gorm:"foreignKey:SafeID"`
+	User          User  `json:"user" gorm:"foreignKey:UserID"`
+	GrantedByUser User  `json:"granted_by_user" gorm:"foreignKey:GrantedBy"`
+}
+
+// IsSystemPermission 检查是否为系统级权限
+func (ucp *UserCustomPermission) IsSystemPermission() bool {
+	return ucp.SafeID == nil
+}
+
+// IsActive 检查权限是否有效
+func (ucp *UserCustomPermission) IsActive() bool {
+	if !ucp.Granted {
+		return false
+	}
+	if ucp.ExpiresAt != nil && ucp.ExpiresAt.Before(time.Now()) {
+		return false
+	}
+	return true
+}

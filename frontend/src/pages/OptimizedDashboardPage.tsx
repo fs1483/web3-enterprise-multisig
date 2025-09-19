@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Layout } from '../components/layout/Layout';
 import { DashboardCards } from '../components/dashboard/DashboardCards';
 import { PendingProposalsWidget } from '../components/dashboard/PendingProposalsWidget';
+import { ButtonGuard } from '../components/permissions/PermissionGuard';
 
 /**
  * 优化后的Dashboard页面
@@ -28,27 +29,33 @@ export const OptimizedDashboardPage: React.FC = () => {
             快速操作
           </h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <button 
-              onClick={() => navigate('/proposals/create')}
-              className="bg-white hover:bg-gray-50 border border-gray-200 rounded-lg p-4 text-left transition-colors"
-            >
-              <div className="text-blue-600 font-medium">创建新提案</div>
-              <div className="text-sm text-gray-600 mt-1">发起新的多签交易提案</div>
-            </button>
-            <button 
-              onClick={() => navigate('/safes/create')}
-              className="bg-white hover:bg-gray-50 border border-gray-200 rounded-lg p-4 text-left transition-colors"
-            >
-              <div className="text-green-600 font-medium">创建Safe钱包</div>
-              <div className="text-sm text-gray-600 mt-1">部署新的多签钱包</div>
-            </button>
-            <button 
-              onClick={() => navigate('/safes')}
-              className="bg-white hover:bg-gray-50 border border-gray-200 rounded-lg p-4 text-left transition-colors"
-            >
-              <div className="text-purple-600 font-medium">查看所有Safe</div>
-              <div className="text-sm text-gray-600 mt-1">管理您的多签钱包</div>
-            </button>
+            <ButtonGuard buttonCode="dashboard.button.create_proposal">
+              <button 
+                onClick={() => navigate('/proposals/create')}
+                className="bg-white hover:bg-gray-50 border border-gray-200 rounded-lg p-4 text-left transition-colors"
+              >
+                <div className="text-blue-600 font-medium">创建新提案</div>
+                <div className="text-sm text-gray-600 mt-1">发起新的多签交易提案</div>
+              </button>
+            </ButtonGuard>
+            <ButtonGuard buttonCode="dashboard.button.create_safe">
+              <button 
+                onClick={() => navigate('/safes/create')}
+                className="bg-white hover:bg-gray-50 border border-gray-200 rounded-lg p-4 text-left transition-colors"
+              >
+                <div className="text-green-600 font-medium">创建Safe钱包</div>
+                <div className="text-sm text-gray-600 mt-1">部署新的多签钱包</div>
+              </button>
+            </ButtonGuard>
+            <ButtonGuard buttonCode="dashboard.button.view_safes">
+              <button 
+                onClick={() => navigate('/safes')}
+                className="bg-white hover:bg-gray-50 border border-gray-200 rounded-lg p-4 text-left transition-colors"
+              >
+                <div className="text-purple-600 font-medium">查看所有Safe</div>
+                <div className="text-sm text-gray-600 mt-1">管理您的多签钱包</div>
+              </button>
+            </ButtonGuard>
           </div>
         </div>
 

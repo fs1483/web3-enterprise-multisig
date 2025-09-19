@@ -9,6 +9,7 @@ import (
 
 	"web3-enterprise-multisig/internal/database"
 	"web3-enterprise-multisig/internal/models"
+	"web3-enterprise-multisig/internal/services"
 	"web3-enterprise-multisig/internal/validators"
 	"web3-enterprise-multisig/internal/workflow"
 
@@ -41,14 +42,20 @@ func GetProposals(c *gin.Context) {
 
 	query := database.DB.Model(&models.Proposal{})
 
-	// 只显示用户有权限的提案：用户是Safe创建者或用户钱包地址在Safe的owners中
-	if user.WalletAddress != nil {
-		query = query.Joins("JOIN safes ON proposals.safe_id = safes.id").
-			Where("safes.created_by = ? OR ? = ANY(safes.owners)", userID, *user.WalletAddress)
+	// 超级管理员可以查看所有提案
+	if user.Role == "super_admin" {
+		// 超级管理员不需要额外的权限过滤，可以查看所有提案
+		query = query.Joins("JOIN safes ON proposals.safe_id = safes.id")
 	} else {
-		// 如果用户没有钱包地址，只显示用户创建的Safe的提案
-		query = query.Joins("JOIN safes ON proposals.safe_id = safes.id").
-			Where("safes.created_by = ?", userID)
+		// 普通用户只显示有权限的提案：用户是Safe创建者或用户钱包地址在Safe的owners中
+		if user.WalletAddress != nil {
+			query = query.Joins("JOIN safes ON proposals.safe_id = safes.id").
+				Where("safes.created_by = ? OR ? = ANY(safes.owners)", userID, *user.WalletAddress)
+		} else {
+			// 如果用户没有钱包地址，只显示用户创建的Safe的提案
+			query = query.Joins("JOIN safes ON proposals.safe_id = safes.id").
+				Where("safes.created_by = ?", userID)
+		}
 	}
 
 	if safeID != "" {
@@ -126,32 +133,69 @@ func CreateProposal(c *gin.Context) {
 		return
 	}
 
-	// 检查用户是否为 Safe 的所有者
-	// 获取用户的钱包地址
-	var user models.User
-	if err := database.DB.First(&user, userID).Error; err != nil {
+	// 使用权限服务检查用户是否有创建提案的权限
+	permissionService := services.NewPermissionService(database.DB)
+	hasPermission, err := permissionService.CheckPermission(c.Request.Context(), services.PermissionRequest{
+		UserID:         userID.(uuid.UUID),
+		SafeID:         safeUUID,
+		PermissionCode: "safe.proposal.create",
+		Context: map[string]interface{}{
+			"proposal_type": req.ProposalType,
+			"value":         req.Value,
+			"to_address":    req.ToAddress,
+		},
+	})
+	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": "Failed to fetch user information",
-			"code":  "USER_FETCH_ERROR",
+			"error": "权限检查失败",
+			"code":  "PERMISSION_CHECK_FAILED",
+			"details": err.Error(),
 		})
 		return
 	}
 
-	isOwner := false
-	if user.WalletAddress != nil {
-		// 检查用户钱包地址是否在Safe的owners中
-		for _, owner := range safe.Owners {
-			if owner == *user.WalletAddress {
-				isOwner = true
-				break
-			}
-		}
+	if !hasPermission.Granted {
+		c.JSON(http.StatusForbidden, gin.H{
+			"error": "没有权限为此Safe创建提案",
+			"code":  "PERMISSION_DENIED",
+			"details": hasPermission.DenialReason,
+		})
+		return
 	}
 
-	if !isOwner && safe.CreatedBy != userID {
+	// 使用策略服务验证提案是否符合策略要求
+	policyService := services.NewPolicyService(database.DB)
+	policyValidationReq := services.PolicyValidationRequest{
+		SafeID:       safeUUID,
+		ProposalType: req.ProposalType,
+		ToAddress:    &req.ToAddress,
+		Value:        req.Value,
+		Data:         &req.Data,
+		UserID:       userID.(uuid.UUID),
+		Context: map[string]interface{}{
+			"action": "create_proposal",
+		},
+	}
+
+	policyResult, err := policyService.ValidatePolicies(c.Request.Context(), policyValidationReq)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "策略验证失败",
+			"code":  "POLICY_VALIDATION_FAILED",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	if !policyResult.Passed {
 		c.JSON(http.StatusForbidden, gin.H{
-			"error": "Not authorized to create proposals for this safe",
-			"code":  "NOT_AUTHORIZED",
+			"error": "提案不符合策略要求",
+			"code":  "POLICY_VIOLATION",
+			"details": gin.H{
+				"failed_policies":   policyResult.FailedPolicies,
+				"required_actions":  policyResult.RequiredActions,
+				"validation_errors": policyResult.ValidationErrors,
+			},
 		})
 		return
 	}
@@ -286,27 +330,31 @@ func GetProposal(c *gin.Context) {
 		return
 	}
 
-	// 检查用户权限
-	hasAccess := proposal.Safe.CreatedBy == userID
-
-	if !hasAccess {
-		// 获取用户钱包地址
-		var user models.User
-		if err := database.DB.First(&user, userID).Error; err == nil && user.WalletAddress != nil {
-			// 使用钱包地址匹配Safe owners
-			for _, owner := range proposal.Safe.Owners {
-				if owner == *user.WalletAddress {
-					hasAccess = true
-					break
-				}
-			}
-		}
+	// 使用权限服务检查用户是否有查看提案的权限
+	permissionService := services.NewPermissionService(database.DB)
+	hasPermission, err := permissionService.CheckPermission(c.Request.Context(), services.PermissionRequest{
+		UserID:         userID.(uuid.UUID),
+		SafeID:         proposal.SafeID,
+		PermissionCode: "safe.proposal.view",
+		Context: map[string]interface{}{
+			"proposal_id": proposalUUID,
+			"proposal_status": proposal.Status,
+		},
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "权限检查失败",
+			"code":  "PERMISSION_CHECK_FAILED",
+			"details": err.Error(),
+		})
+		return
 	}
 
-	if !hasAccess {
+	if !hasPermission.Granted {
 		c.JSON(http.StatusForbidden, gin.H{
-			"error": "Not authorized to view this proposal",
-			"code":  "NOT_AUTHORIZED",
+			"error": "没有权限查看此提案",
+			"code":  "PERMISSION_DENIED",
+			"details": hasPermission.DenialReason,
 		})
 		return
 	}
@@ -339,11 +387,32 @@ func UpdateProposal(c *gin.Context) {
 		return
 	}
 
-	// 检查权限：只有创建者可以更新提案
-	if proposal.CreatedBy != userID {
+	// 使用权限服务检查用户是否有更新提案的权限
+	permissionService := services.NewPermissionService(database.DB)
+	hasPermission, err := permissionService.CheckPermission(c.Request.Context(), services.PermissionRequest{
+		UserID:         userID.(uuid.UUID),
+		SafeID:         proposal.SafeID,
+		PermissionCode: "safe.proposal.update",
+		Context: map[string]interface{}{
+			"proposal_id": proposalUUID,
+			"proposal_status": proposal.Status,
+			"is_creator": proposal.CreatedBy == userID,
+		},
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "权限检查失败",
+			"code":  "PERMISSION_CHECK_FAILED",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	if !hasPermission.Granted {
 		c.JSON(http.StatusForbidden, gin.H{
-			"error": "Only the creator can update this proposal",
-			"code":  "NOT_AUTHORIZED",
+			"error": "没有权限更新此提案",
+			"code":  "PERMISSION_DENIED",
+			"details": hasPermission.DenialReason,
 		})
 		return
 	}
@@ -439,11 +508,32 @@ func DeleteProposal(c *gin.Context) {
 		return
 	}
 
-	// 检查权限：只有创建者可以删除提案
-	if proposal.CreatedBy != userID {
+	// 使用权限服务检查用户是否有删除提案的权限
+	permissionService := services.NewPermissionService(database.DB)
+	hasPermission, err := permissionService.CheckPermission(c.Request.Context(), services.PermissionRequest{
+		UserID:         userID.(uuid.UUID),
+		SafeID:         proposal.SafeID,
+		PermissionCode: "safe.proposal.delete",
+		Context: map[string]interface{}{
+			"proposal_id": proposalUUID,
+			"proposal_status": proposal.Status,
+			"is_creator": proposal.CreatedBy == userID,
+		},
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "权限检查失败",
+			"code":  "PERMISSION_CHECK_FAILED",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	if !hasPermission.Granted {
 		c.JSON(http.StatusForbidden, gin.H{
-			"error": "Only the creator can delete this proposal",
-			"code":  "NOT_AUTHORIZED",
+			"error": "没有权限删除此提案",
+			"code":  "PERMISSION_DENIED",
+			"details": hasPermission.DenialReason,
 		})
 		return
 	}

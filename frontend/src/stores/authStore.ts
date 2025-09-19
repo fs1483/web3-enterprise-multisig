@@ -5,7 +5,7 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  role: 'admin' | 'member';
+  role: 'super_admin' | 'admin' | 'user' | 'viewer' | 'member';
   walletAddress?: string;
   createdAt: string;
   updatedAt: string;
@@ -46,7 +46,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
         set({ isLoading: true, error: null });
         
         try {
-          const response = await fetch('/api/v1/auth/login', {
+          const response = await fetch('http://localhost:8080/api/v1/auth/login', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -92,7 +92,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
         set({ isLoading: true, error: null });
         
         try {
-          const response = await fetch('/api/v1/auth/register', {
+          const response = await fetch('http://localhost:8080/api/v1/auth/register', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -137,7 +137,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
         set({ isLoading: true, error: null });
         
         try {
-          const response = await fetch('/api/v1/auth/wallet-register', {
+          const response = await fetch('http://localhost:8080/api/v1/auth/wallet-register', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -189,7 +189,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
         set({ isLoading: true, error: null });
         
         try {
-          const response = await fetch('/api/v1/auth/wallet-login', {
+          const response = await fetch('http://localhost:8080/api/v1/auth/wallet-login', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -263,7 +263,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
         set({ isLoading: true, error: null });
         
         try {
-          const response = await fetch('/api/v1/users/profile', {
+          const response = await fetch('http://localhost:8080/api/v1/users/profile', {
             method: 'PUT',
             headers: {
               'Content-Type': 'application/json',
@@ -300,6 +300,14 @@ export const useAuthStore = create<AuthState & AuthActions>()(
         token: state.token,
         isAuthenticated: state.isAuthenticated,
       }),
+      onRehydrateStorage: () => (state) => {
+        console.log('Zustand rehydration:', state);
+        if (state?.token && state?.user) {
+          console.log('恢复认证状态:', { user: state.user.email, hasToken: !!state.token });
+        } else {
+          console.log('未找到保存的认证状态');
+        }
+      },
     }
   )
 );

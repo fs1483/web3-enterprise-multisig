@@ -50,6 +50,8 @@ type SafeTransaction struct {
 	Owners          StringArray    `json:"owners" db:"owners" gorm:"type:jsonb"`        // 所有者地址数组
 	Threshold       int            `json:"threshold" db:"threshold" gorm:"not null"`     // 签名阈值
 	ChainID         int            `json:"chain_id" db:"chain_id" gorm:"default:11155111"` // 链ID（默认Sepolia）
+	// 新增：成员角色分配信息（JSON格式存储）
+	MemberRoles     string         `json:"member_roles" db:"member_roles" gorm:"type:jsonb"` // 成员角色分配信息
 
 	// 时间戳管理
 	CreatedAt   time.Time  `json:"created_at" db:"created_at" gorm:"default:CURRENT_TIMESTAMP"`   // 交易提交时间
@@ -260,6 +262,34 @@ func (s *PostgreSQLStringArray) Scan(value interface{}) error {
 
 // StringArray 为了向后兼容，保持原有类型名
 type StringArray = JSONStringArray
+
+// JSONMap 用于处理JSONB字段的map类型
+type JSONMap map[string]interface{}
+
+// Value 实现driver.Valuer接口 - JSON格式
+func (m JSONMap) Value() (driver.Value, error) {
+	if m == nil {
+		return nil, nil
+	}
+	return json.Marshal(m)
+}
+
+// Scan 实现sql.Scanner接口 - JSON格式
+func (m *JSONMap) Scan(value interface{}) error {
+	if value == nil {
+		*m = nil
+		return nil
+	}
+
+	switch v := value.(type) {
+	case []byte:
+		return json.Unmarshal(v, m)
+	case string:
+		return json.Unmarshal([]byte(v), m)
+	default:
+		return fmt.Errorf("cannot scan %T into JSONMap", value)
+	}
+}
 
 // 自定义错误定义
 var (

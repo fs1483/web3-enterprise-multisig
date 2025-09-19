@@ -15,7 +15,7 @@ type User struct {
 	FullName      *string    `json:"full_name"`
 	AvatarURL     *string    `json:"avatar_url"`
 	WalletAddress *string    `json:"wallet_address" gorm:"uniqueIndex"` // 新增钱包地址字段
-	Role          string     `json:"role" gorm:"default:user;check:role IN ('admin','user','viewer')"`
+	Role          string     `json:"role" gorm:"default:user;check:role IN ('super_admin','admin','user','viewer')"`
 	IsActive      bool       `json:"is_active" gorm:"default:true"`
 	EmailVerified bool       `json:"email_verified" gorm:"default:false"`
 	LastLoginAt   *time.Time `json:"last_login_at"`

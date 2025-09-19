@@ -592,28 +592,53 @@ const SafesPage: React.FC = () => {
                         paddingTop: '16px',
                         borderTop: '1px solid #F3F4F6'
                       }}>
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleViewSafe(safe.address);
-                          }}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            color: '#3B82F6',
-                            backgroundColor: 'transparent',
-                            border: 'none',
-                            cursor: 'pointer',
-                            transition: 'color 0.2s ease',
-                            fontSize: '14px',
-                            fontWeight: '500'
-                          }}
-                          onMouseEnter={(e) => e.currentTarget.style.color = '#1E40AF'}
-                          onMouseLeave={(e) => e.currentTarget.style.color = '#3B82F6'}
-                        >
-                          <Eye size={16} style={{ marginRight: '6px' }} />
-                          查看详情
-                        </button>
+                        <div style={{ display: 'flex', gap: '12px' }}>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleViewSafe(safe.address);
+                            }}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              color: '#3B82F6',
+                              backgroundColor: 'transparent',
+                              border: 'none',
+                              cursor: 'pointer',
+                              transition: 'color 0.2s ease',
+                              fontSize: '14px',
+                              fontWeight: '500'
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.color = '#1E40AF'}
+                            onMouseLeave={(e) => e.currentTarget.style.color = '#3B82F6'}
+                          >
+                            <Eye size={16} style={{ marginRight: '6px' }} />
+                            查看详情
+                          </button>
+
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              navigate(`/permissions?tab=safe&safeId=${safe.id}`);
+                            }}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              color: '#059669',
+                              backgroundColor: 'transparent',
+                              border: 'none',
+                              cursor: 'pointer',
+                              transition: 'color 0.2s ease',
+                              fontSize: '14px',
+                              fontWeight: '500'
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.color = '#047857'}
+                            onMouseLeave={(e) => e.currentTarget.style.color = '#059669'}
+                          >
+                            <Users size={16} style={{ marginRight: '6px' }} />
+                            权限管理
+                          </button>
+                        </div>
 
                         <a
                           href={`https://sepolia.etherscan.io/address/${safe.address}`}

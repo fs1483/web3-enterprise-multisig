@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
@@ -177,7 +178,7 @@ func GetSafes(c *gin.Context) {
 func CreateSafe(c *gin.Context) {
 	userID, _ := c.Get("userID")
 
-	// 解析请求参数 - 现在包含交易哈希
+	// 解析请求参数 - 现在包含交易哈希和成员角色信息
 	var req struct {
 		TxHash      string   `json:"tx_hash" binding:"required,len=66"`        // 区块链交易哈希
 		Name        string   `json:"name" binding:"required,min=1,max=255"`    // Safe名称
@@ -185,6 +186,11 @@ func CreateSafe(c *gin.Context) {
 		Owners      []string `json:"owners" binding:"required,min=1"`          // 所有者地址数组
 		Threshold   int      `json:"threshold" binding:"required,min=1"`       // 签名阈值
 		ChainID     int      `json:"chain_id" binding:"required"`              // 链ID
+		// 新增：成员角色分配信息
+		MemberRoles []struct {
+			Address string `json:"address" binding:"required"`  // 成员地址
+			RoleID  string `json:"role_id" binding:"required"`  // 角色模板ID
+		} `json:"member_roles"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -238,6 +244,14 @@ func CreateSafe(c *gin.Context) {
 	}
 	// err == gorm.ErrRecordNotFound 是正常情况，表示交易哈希不存在，可以继续创建
 
+	// 序列化成员角色信息为JSON
+	memberRolesJSON := "[]"
+	if len(req.MemberRoles) > 0 {
+		if rolesBytes, err := json.Marshal(req.MemberRoles); err == nil {
+			memberRolesJSON = string(rolesBytes)
+		}
+	}
+
 	// 创建Safe交易记录（异步处理模式）
 	safeTransaction := models.SafeTransaction{
 		ID:              uuid.New(),
@@ -249,6 +263,7 @@ func CreateSafe(c *gin.Context) {
 		Owners:          models.StringArray(req.Owners),
 		Threshold:       req.Threshold,
 		ChainID:         req.ChainID,
+		MemberRoles:     memberRolesJSON,        // 新增：保存成员角色信息
 		CreatedAt:       time.Now(),
 		UpdatedAt:       time.Now(),
 		RetryCount:      0,
@@ -285,8 +300,8 @@ func CreateSafe(c *gin.Context) {
 
 // GetSafe 获取单个 Safe 钱包详情（通过ID）
 func GetSafe(c *gin.Context) {
-	safeID := c.Param("id")
-	userID, _ := c.Get("userID")
+	safeID := c.Param("safeId")
+	// userID, _ := c.Get("userID") // 权限检查已在中间件完成，不需要userID
 
 	safeUUID, err := uuid.Parse(safeID)
 	if err != nil {
@@ -307,24 +322,8 @@ func GetSafe(c *gin.Context) {
 		return
 	}
 
-	// 检查用户权限
-	hasAccess := safe.CreatedBy == userID
-
-	if !hasAccess {
-		// 获取当前用户的钱包地址
-		var user models.User
-		if err := database.DB.First(&user, userID).Error; err == nil && user.WalletAddress != nil {
-			userWalletAddress := *user.WalletAddress
-			// 检查用户的钱包地址是否在Safe的所有者列表中
-			for _, owner := range safe.Owners {
-				if strings.EqualFold(owner, userWalletAddress) {
-					hasAccess = true
-					break
-				}
-			}
-		}
-	}
-
+	// 权限检查已在中间件中完成，直接允许访问
+	hasAccess := true
 	if !hasAccess {
 		c.JSON(http.StatusForbidden, gin.H{
 			"error": "Not authorized to view this safe",
@@ -341,7 +340,7 @@ func GetSafe(c *gin.Context) {
 // GetSafeByAddress 通过Safe地址获取Safe详情
 func GetSafeByAddress(c *gin.Context) {
 	safeAddress := c.Param("address")
-	userID, _ := c.Get("userID")
+	// userID, _ := c.Get("userID") // 权限检查已在中间件完成，不需要userID
 
 	// 调试日志
 	fmt.Printf("DEBUG: Received safe address: %s\n", safeAddress)
@@ -373,24 +372,8 @@ func GetSafeByAddress(c *gin.Context) {
 		return
 	}
 
-	// 检查用户权限
-	hasAccess := safe.CreatedBy == userID
-
-	if !hasAccess {
-		// 获取当前用户的钱包地址
-		var user models.User
-		if err := database.DB.First(&user, userID).Error; err == nil && user.WalletAddress != nil {
-			userWalletAddress := *user.WalletAddress
-			// 检查用户的钱包地址是否在Safe的所有者列表中
-			for _, owner := range safe.Owners {
-				if strings.EqualFold(owner, userWalletAddress) {
-					hasAccess = true
-					break
-				}
-			}
-		}
-	}
-
+	// 权限检查已在中间件中完成，直接允许访问
+	hasAccess := true
 	if !hasAccess {
 		c.JSON(http.StatusForbidden, gin.H{
 			"error": "Not authorized to view this safe",
@@ -406,7 +389,7 @@ func GetSafeByAddress(c *gin.Context) {
 
 // UpdateSafe 更新 Safe 钱包信息
 func UpdateSafe(c *gin.Context) {
-	safeID := c.Param("id")
+	safeID := c.Param("safeId")
 	userID, _ := c.Get("userID")
 
 	safeUUID, err := uuid.Parse(safeID)
@@ -489,7 +472,7 @@ func UpdateSafe(c *gin.Context) {
 
 // GetSafeNonce 获取Safe合约的当前nonce
 func GetSafeNonce(c *gin.Context) {
-	safeID := c.Param("id")
+	safeID := c.Param("safeId")
 	
 	safeUUID, err := uuid.Parse(safeID)
 	if err != nil {

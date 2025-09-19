@@ -48,12 +48,20 @@ export const dashboardStore = create<DashboardState>((set) => ({
 
       // 获取认证信息
       const authData = useAuthStore.getState();
+      console.log('Dashboard API调用 - 认证状态:', { 
+        isAuthenticated: authData.isAuthenticated, 
+        hasToken: !!authData.token 
+      });
+      
       if (!authData.isAuthenticated || !authData.token) {
         throw new Error('用户未认证');
       }
 
       // 调用新的Dashboard Cards API
-      const response = await fetch('/api/v1/dashboard/cards', {
+      const apiUrl = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/dashboard/cards`;
+      console.log('Dashboard API调用 - URL:', apiUrl);
+      
+      const response = await fetch(apiUrl, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${authData.token}`,
@@ -61,15 +69,20 @@ export const dashboardStore = create<DashboardState>((set) => ({
         },
       });
 
+      console.log('Dashboard API响应 - 状态:', response.status);
+
       if (!response.ok) {
         const errorData = await response.json();
+        console.error('Dashboard API错误:', errorData);
         throw new Error(errorData.error || `API请求失败: ${response.status}`);
       }
 
       const data = await response.json();
+      console.log('Dashboard API响应 - 数据:', data);
       
       // 验证响应数据结构 - 后端返回的是 data.data.proposalCenter 格式
       if (!data.success || !data.data || !data.data.proposalCenter || !data.data.assetOverview) {
+        console.error('Dashboard API数据格式错误:', data);
         throw new Error('API响应数据格式错误');
       }
 
@@ -80,6 +93,8 @@ export const dashboardStore = create<DashboardState>((set) => ({
         lastUpdated: data.data.lastUpdated
       };
 
+      console.log('Dashboard数据处理完成:', cardsData);
+
       set({ 
         cardsData: cardsData,
         loading: false,
@@ -88,29 +103,23 @@ export const dashboardStore = create<DashboardState>((set) => ({
 
     } catch (error) {
       console.error('获取Dashboard卡片数据失败:', error);
+      
+      // 如果是认证错误，不设置Mock数据
+      if (error instanceof Error && error.message.includes('未认证')) {
+        set({ 
+          loading: false, 
+          error: error.message,
+          cardsData: null
+        });
+        return;
+      }
+      
       set({ 
         loading: false, 
         error: error instanceof Error ? error.message : '未知错误' 
       });
       
-      // 如果API失败，提供Mock数据确保功能可用
-      const mockData: DashboardCardsData = {
-        proposalCenter: {
-          pendingSignatures: 3,
-          urgentCount: 1,
-          totalProposals: 15,
-          confirmedProposals: 12,
-          failedProposals: 2,
-          approvalRate: "80.0"
-        },
-        assetOverview: {
-          totalETH: "2.45",
-          safeCount: 2
-        },
-        lastUpdated: new Date().toISOString()
-      };
-      
-      set({ cardsData: mockData });
+      // 不使用Mock数据，保持错误状态让用户知道问题所在
     }
   },
 

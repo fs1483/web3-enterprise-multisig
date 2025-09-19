@@ -7,12 +7,14 @@ import (
     
     "github.com/golang-jwt/jwt/v5"
     "github.com/google/uuid"
+    "web3-enterprise-multisig/internal/services"
 )
 
 type Claims struct {
-    UserID   uuid.UUID `json:"user_id"`
-    Username string    `json:"username"`
-    Role     string    `json:"role"`
+    UserID      uuid.UUID                                `json:"user_id"`
+    Username    string                                   `json:"username"`
+    Role        string                                   `json:"role"`
+    Permissions map[string][]services.UserPermissionMapping `json:"permissions,omitempty"` // 权限映射
     jwt.RegisteredClaims
 }
 
@@ -30,10 +32,18 @@ func getJWTSecret() string {
 func GenerateToken(userID uuid.UUID, username, role string) (string, error) {
     expirationTime := time.Now().Add(24 * time.Hour)
     
+    // 获取用户权限映射
+    permissions, err := services.GetUserPermissionMappings(userID)
+    if err != nil {
+        // 权限获取失败不影响token生成，只记录错误
+        permissions = make(map[string][]services.UserPermissionMapping)
+    }
+    
     claims := &Claims{
-        UserID:   userID,
-        Username: username,
-        Role:     role,
+        UserID:      userID,
+        Username:    username,
+        Role:        role,
+        Permissions: permissions,
         RegisteredClaims: jwt.RegisteredClaims{
             ExpiresAt: jwt.NewNumericDate(expirationTime),
             IssuedAt:  jwt.NewNumericDate(time.Now()),

@@ -232,46 +232,62 @@ const SafeDetailPage: React.FC = () => {
             </div>
           </div>
 
-          {/* 所有者列表 */}
-          <div className="bg-white rounded-lg shadow-sm p-6 mb-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">所有者地址</h2>
-            <div className="space-y-3">
-              {safeInfo.owners.map((owner, index) => (
-                <div key={index} className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
-                  <div className="flex items-center">
-                    <div className="bg-blue-100 text-blue-600 rounded-full w-8 h-8 flex items-center justify-center text-sm font-medium mr-3">
-                      {index + 1}
-                    </div>
-                    <span className="font-mono text-sm text-gray-900">{owner}</span>
-                  </div>
-                  <div className="flex items-center space-x-2">
+          {/* Safe详细信息 */}
+          <div className="bg-white rounded-lg shadow-sm mb-6">
+            <div className="p-6">
+              <div className="space-y-6">
+                {/* 所有者列表 */}
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900">所有者地址</h3>
                     <button
-                      onClick={() => copyAddress(owner)}
-                      className="p-1 text-gray-500 hover:text-gray-700 transition-colors"
-                      title="复制地址"
+                      onClick={() => navigate(`/permissions?tab=safe&safeId=${safeInfo.id}`)}
+                      className="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-colors"
                     >
-                      <Copy className="w-4 h-4" />
+                      <Shield className="w-4 h-4 mr-1.5" />
+                      权限管理
                     </button>
-                    <a
-                      href={`https://sepolia.etherscan.io/address/${owner}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="p-1 text-gray-500 hover:text-gray-700 transition-colors"
-                      title="在Etherscan上查看"
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
+                  </div>
+                  <div className="space-y-3">
+                    {safeInfo.owners.map((owner, index) => (
+                      <div key={index} className="flex items-center justify-between bg-gray-50 rounded-lg p-3">
+                        <div className="flex items-center">
+                          <div className="bg-blue-100 text-blue-600 rounded-full w-8 h-8 flex items-center justify-center text-sm font-medium mr-3">
+                            {index + 1}
+                          </div>
+                          <span className="font-mono text-sm text-gray-900">{owner}</span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <button
+                            onClick={() => copyAddress(owner)}
+                            className="p-1 text-gray-500 hover:text-gray-700 transition-colors"
+                            title="复制地址"
+                          >
+                            <Copy className="w-4 h-4" />
+                          </button>
+                          <a
+                            href={`https://sepolia.etherscan.io/address/${owner}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1 text-gray-500 hover:text-gray-700 transition-colors"
+                            title="在Etherscan上查看"
+                          >
+                            <ExternalLink className="w-4 h-4" />
+                          </a>
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
 
-          {/* 创建信息 */}
-          <div className="bg-white rounded-lg shadow-sm p-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">创建信息</h2>
-            <div className="text-sm text-gray-600">
-              <p>创建时间: {new Date(safeInfo.created_at).toLocaleString('zh-CN')}</p>
+                {/* 创建信息 */}
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">创建信息</h3>
+                  <div className="text-sm text-gray-600">
+                    <p>创建时间: {new Date(safeInfo.created_at).toLocaleString('zh-CN')}</p>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </div>

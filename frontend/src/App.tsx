@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AppRouter } from './router';
 import InPageNotificationProvider from './components/notifications/InPageNotificationProvider';
+import { AppProviders } from './components/providers/AppProviders';
 import './index.css';
 
 // Create a client
@@ -16,9 +17,11 @@ const queryClient = new QueryClient({
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <InPageNotificationProvider>
-        <AppRouter />
-      </InPageNotificationProvider>
+      <AppProviders>
+        <InPageNotificationProvider>
+          <AppRouter />
+        </InPageNotificationProvider>
+      </AppProviders>
     </QueryClientProvider>
   );
 }

@@ -7,18 +7,23 @@ import {
   Settings, 
   Wallet,
   BarChart3,
-  Shield
+  Shield,
+  Lock,
+  Gavel
 } from 'lucide-react';
 import { clsx } from 'clsx';
+import { MenuGuard } from '../permissions/PermissionGuard';
 
 const navigation = [
-  { name: 'Dashboard', href: '/', icon: Home },
-  { name: 'Proposals', href: '/proposals', icon: FileText },
-  { name: 'Safes', href: '/safes', icon: Shield },
-  { name: 'Transactions', href: '/transactions', icon: Wallet },
-  { name: 'Analytics', href: '/analytics', icon: BarChart3 },
-  { name: 'Team', href: '/team', icon: Users },
-  { name: 'Settings', href: '/settings', icon: Settings },
+  { name: 'Dashboard', href: '/', icon: Home, permission: 'system.menu.dashboard' },
+  { name: 'Proposals', href: '/proposals', icon: FileText, permission: 'system.menu.proposals' },
+  { name: 'Safes', href: '/safes', icon: Shield, permission: 'system.menu.safes' },
+  { name: 'Transactions', href: '/transactions', icon: Wallet, permission: 'system.menu.transactions' },
+  { name: 'Permissions', href: '/permissions', icon: Lock, permission: 'system.menu.permissions' },
+  { name: 'Policies', href: '/policies', icon: Gavel, permission: 'system.menu.policies' },
+  { name: 'Analytics', href: '/analytics', icon: BarChart3, permission: 'system.menu.analytics' },
+  { name: 'Team', href: '/team', icon: Users, permission: 'system.menu.team' },
+  { name: 'Settings', href: '/settings', icon: Settings, permission: 'system.menu.settings' },
 ];
 
 export const Sidebar: React.FC = () => {
@@ -39,11 +44,11 @@ export const Sidebar: React.FC = () => {
           </div>
           <nav className="mt-4 flex-1 space-y-2 px-3">
             {navigation.map((item) => (
-              <NavLink
-                key={item.name}
-                to={item.href}
-                className={({ isActive }) =>
-                  clsx(
+              <MenuGuard key={item.name} menuCode={item.permission}>
+                <NavLink
+                  to={item.href}
+                  className={({ isActive }) =>
+                    clsx(
                     'group flex items-center px-4 py-3 text-sm font-medium rounded-xl transition-all duration-200 transform hover:scale-105',
                     isActive
                       ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg'
@@ -51,9 +56,10 @@ export const Sidebar: React.FC = () => {
                   )
                 }
               >
-                <item.icon className="mr-3 h-5 w-5 flex-shrink-0" />
-                {item.name}
-              </NavLink>
+                  <item.icon className="mr-3 h-5 w-5 flex-shrink-0" />
+                  {item.name}
+                </NavLink>
+              </MenuGuard>
             ))}
           </nav>
           

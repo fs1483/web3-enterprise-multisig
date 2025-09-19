@@ -14,6 +14,12 @@ import SafeTransactionHistoryPage from '../pages/safes/SafeTransactionHistoryPag
 import SafeDetailPage from '../pages/safes/SafeDetailPage';
 import SafesPage from '../pages/safes/SafesPage';
 import { TransactionsPage } from '../pages/transactions/TransactionsPage';
+import PermissionManagement from '../components/PermissionManagement';
+import UnifiedPermissionManagement from '../components/UnifiedPermissionManagement';
+import PolicyManagement from '../components/PolicyManagement';
+import { PoliciesPage } from '../pages/policies/PoliciesPage';
+import UserSettings from '../components/UserSettings';
+import AdminManagement from '../components/AdminManagement';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -135,13 +141,18 @@ export const AppRouter: React.FC = () => {
           }
         />
         <Route
+          path="/admin"
+          element={
+            <ProtectedRoute>
+              <AdminManagement />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/settings"
           element={
             <ProtectedRoute>
-              <div className="p-8 text-center">
-                <h1 className="text-2xl font-bold">Settings</h1>
-                <p className="text-gray-600 mt-2">Coming soon...</p>
-              </div>
+              <UserSettings />
             </ProtectedRoute>
           }
         />
@@ -190,6 +201,54 @@ export const AppRouter: React.FC = () => {
           element={
             <ProtectedRoute>
               <SafeDetailPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/safes/:safeId/permissions"
+          element={
+            <ProtectedRoute>
+              <PermissionManagement />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/safes/:safeId/policies"
+          element={
+            <ProtectedRoute>
+              <PolicyManagement />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/permissions"
+          element={
+            <ProtectedRoute>
+              <UnifiedPermissionManagement />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/permissions/legacy"
+          element={
+            <ProtectedRoute>
+              <PermissionManagement />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/permissions/:safeId"
+          element={
+            <ProtectedRoute>
+              <PermissionManagement />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/policies"
+          element={
+            <ProtectedRoute>
+              <PoliciesPage />
             </ProtectedRoute>
           }
         />

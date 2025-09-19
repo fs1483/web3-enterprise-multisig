@@ -39,6 +39,10 @@ func main() {
 	// 初始化服务
 	safeTransactionService := services.NewSafeTransactionService(database.DB)
 	safeTransactionHandler := handlers.NewSafeTransactionHandler(safeTransactionService)
+	
+	// 初始化管理员服务
+	adminInitService := services.NewAdminInitService(database.DB)
+	adminInitHandler := handlers.NewAdminInitHandler(adminInitService)
 
 	// 初始化区块链监听器
 	rpcUrl := os.Getenv("ETHEREUM_RPC_URL")
@@ -92,8 +96,17 @@ func main() {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
+	// 创建Safe角色模板处理器
+	safeRoleTemplateHandler := handlers.NewSafeRoleTemplateHandler(database.DB)
+	
+	// 创建Safe自定义角色处理器
+	safeCustomRoleHandler := handlers.NewSafeCustomRoleHandler(database.DB)
+	
+	// 创建系统角色模板处理器
+	systemRoleTemplateHandler := handlers.NewSystemRoleTemplateHandler(database.DB)
+
 	// 创建路由
-	router := setupRouter(wsHub, safeTransactionHandler)
+	router := setupRouter(wsHub, safeTransactionHandler, adminInitHandler, safeRoleTemplateHandler, safeCustomRoleHandler, systemRoleTemplateHandler)
 
 	// 启动服务器
 	port := os.Getenv("PORT")
@@ -107,7 +120,7 @@ func main() {
 	}
 }
 
-func setupRouter(wsHub *websocket.Hub, safeTransactionHandler *handlers.SafeTransactionHandler) *gin.Engine {
+func setupRouter(wsHub *websocket.Hub, safeTransactionHandler *handlers.SafeTransactionHandler, adminInitHandler *handlers.AdminInitHandler, safeRoleTemplateHandler *handlers.SafeRoleTemplateHandler, safeCustomRoleHandler *handlers.SafeCustomRoleHandler, systemRoleTemplateHandler *handlers.SystemRoleTemplateHandler) *gin.Engine {
 	router := gin.New()
 
 	// 禁用自动重定向，避免CORS问题
@@ -128,6 +141,16 @@ func setupRouter(wsHub *websocket.Hub, safeTransactionHandler *handlers.SafeTran
 	// API 路由组
 	api := router.Group("/api/v1")
 
+	// 管理员路由 - 无需认证，用于系统初始化 (放在根API组下)
+	adminAPI := router.Group("/api")
+	admin := adminAPI.Group("/admin")
+	{
+		admin.POST("/init", adminInitHandler.InitializeSystem)
+		admin.GET("/health", adminInitHandler.CheckSystemHealth)
+		admin.POST("/reset-password", adminInitHandler.ResetSuperAdminPassword)
+		admin.POST("/set-password", adminInitHandler.SetCustomPassword)
+	}
+
 	// 认证路由（无需 JWT）
 	auth := api.Group("/auth")
 	{
@@ -142,19 +165,29 @@ func setupRouter(wsHub *websocket.Hub, safeTransactionHandler *handlers.SafeTran
 	protected := api.Group("")
 	protected.Use(middleware.JWTAuth())
 	{
-		// 用户路由
+		// 用户管理路由
 		protected.GET("/users/profile", handlers.GetProfile)
 		protected.PUT("/users/profile", handlers.UpdateProfile)
-		protected.GET("/users", handlers.GetUsers)
-		protected.GET("/users/selection", handlers.GetUsersForSelection)
+		protected.POST("/users/change-password", handlers.ChangePassword)
+		protected.GET("/users", handlers.GetUsers) // 需要管理员权限
+		
+		// 临时开发路由 - 不需要认证
+		api.GET("/users/selection", handlers.GetUsersForSelection)
+		
+		protected.GET("/users/:id/permissions", handlers.GetUserPermissions)
+		protected.POST("/users/:id/permissions", handlers.AssignPermissions)
 
 		// Safe 钱包路由
 		protected.GET("/safes", handlers.GetSafes)
 		protected.POST("/safes", handlers.CreateSafe)
-		protected.GET("/safes/:id", handlers.GetSafe)
-		protected.PUT("/safes/:id", handlers.UpdateSafe)
-		protected.GET("/safes/:id/nonce", handlers.GetSafeNonce)
-		protected.GET("/safes/address/:address", handlers.GetSafeByAddress)
+		protected.GET("/safes/address/:address", middleware.RequireSafeAccessByAddress("safe.info.view"), handlers.GetSafeByAddress)
+		protected.GET("/safes/:safeId", middleware.RequireSafeAccess("safe.info.view"), handlers.GetSafe)
+		protected.PUT("/safes/:safeId", middleware.RequireSafeAccess("safe.info.manage"), handlers.UpdateSafe)
+		protected.GET("/safes/:safeId/nonce", middleware.RequireSafeAccess("safe.info.view"), handlers.GetSafeNonce)
+		// 临时开发路由 - Safe相关不需要认证的端点
+		api.GET("/safes/:safeId/available-users", handlers.GetAvailableUsersForSafe)
+		
+		protected.GET("/safes/:safeId/available-users-protected", handlers.GetAvailableUsersForSafe)
 
 		// Safe 交易状态路由
 		protected.GET("/safe-transactions/:id", safeTransactionHandler.GetSafeTransaction)
@@ -163,32 +196,120 @@ func setupRouter(wsHub *websocket.Hub, safeTransactionHandler *handlers.SafeTran
 
 		// 提案路由
 		protected.GET("/proposals", handlers.GetProposals)
-		protected.POST("/proposals", handlers.CreateProposal)
-		protected.GET("/proposals/:id", handlers.GetProposal)
-		protected.PUT("/proposals/:id", handlers.UpdateProposal)
-		protected.DELETE("/proposals/:id", handlers.DeleteProposal)
+		protected.POST("/proposals", middleware.RequirePermission(middleware.PermissionConfig{
+			PermissionCode: "proposal.create",
+			SafeIDParam:    "safe_id", // 从请求体中获取
+		}), handlers.CreateProposal)
+		protected.GET("/proposals/:id", middleware.OptionalPermissionCheck("proposal.view"), handlers.GetProposal)
+		protected.PUT("/proposals/:id", middleware.RequireAnyPermission("proposal.manage", "proposal.edit"), handlers.UpdateProposal)
+		protected.DELETE("/proposals/:id", middleware.RequireAnyPermission("proposal.manage", "proposal.delete"), handlers.DeleteProposal)
 
 		// 提案签名相关
-		protected.POST("/proposals/:id/sign", handlers.SignProposal)
-		protected.DELETE("/proposals/:id/signatures/:signatureId", handlers.RemoveSignature)
-		protected.GET("/proposals/:id/signatures", handlers.GetSignatures)
+		protected.POST("/proposals/:id/sign", middleware.RequirePermission(middleware.PermissionConfig{
+			PermissionCode: "proposal.sign",
+		}), handlers.SignProposal)
+		protected.DELETE("/proposals/:id/signatures/:signatureId", middleware.RequireAnyPermission("proposal.manage", "signature.revoke"), handlers.RemoveSignature)
+		protected.GET("/proposals/:id/signatures", middleware.OptionalPermissionCheck("proposal.view"), handlers.GetSignatures)
 
 		// 提案执行和拒绝
-		protected.POST("/proposals/:id/execute", handlers.ExecuteProposalByID)
-		protected.POST("/proposals/:id/reject", handlers.RejectProposal)
+		protected.POST("/proposals/:id/execute", middleware.RequirePermission(middleware.PermissionConfig{
+			PermissionCode: "proposal.execute",
+		}), handlers.ExecuteProposalByID)
+		protected.POST("/proposals/:id/reject", middleware.RequireAnyPermission("proposal.manage", "proposal.reject"), handlers.RejectProposal)
 
 		// 工作流路由
 		protected.GET("/workflow/status/:proposalId", handlers.GetWorkflowStatus)
 		protected.POST("/workflow/approve/:proposalId", handlers.ApproveProposal)
 		protected.POST("/workflow/execute/:proposalId", handlers.ExecuteProposal)
 
-		// Dashboard 路由
+		// Dashboard 路由 - 暂时移除权限检查，保持原有功能
 		protected.GET("/dashboard/stats", handlers.GetDashboardStats)
 		protected.GET("/dashboard/activity", handlers.GetRecentActivity)
 		protected.GET("/dashboard/pending-proposals", handlers.GetPendingProposals)
 
 		// Dashboard 卡片路由 - 新增功能，不影响现有路由
 		protected.GET("/dashboard/cards", handlers.GetDashboardCards)
+
+		// Safe创建相关路由
+		protected.GET("/safe-creation/available-roles", handlers.GetAvailableRolesForSafeCreation)
+
+		// 权限定义管理路由（操作级权限）
+		protected.GET("/permission-definitions", handlers.GetPermissionDefinitionsV2)
+		protected.GET("/permission-definitions/categories", handlers.GetPermissionCategories)
+		protected.GET("/permission-definitions/scopes", handlers.GetPermissionScopes)
+		protected.GET("/permission-definitions/:id", handlers.GetPermissionDefinitionByID)
+		protected.POST("/permission-definitions", handlers.CreatePermissionDefinition)
+		protected.PUT("/permission-definitions/:id", handlers.UpdatePermissionDefinition)
+		protected.DELETE("/permission-definitions/:id", handlers.DeletePermissionDefinition)
+		protected.PATCH("/permission-definitions/:id/toggle", handlers.TogglePermissionDefinition)
+
+		// 权限管理路由 - 开发环境暂时移除严格权限检查
+        protected.GET("/safes/:safeId/members", handlers.GetSafeMembers)
+        protected.GET("/safes/:safeId/roles", handlers.GetSafeRoleConfigurations)
+        protected.POST("/safes/:safeId/roles", handlers.CreateCustomRole)
+        protected.PUT("/safes/:safeId/roles/:role", handlers.UpdateRolePermissions)
+        protected.DELETE("/safes/:safeId/roles/:role", handlers.DeleteCustomRole)
+        protected.POST("/safes/:safeId/members/roles", handlers.AssignSafeRole)
+        protected.DELETE("/safes/:safeId/members/:user_id", handlers.RemoveSafeMember)
+        protected.GET("/safes/:safeId/members/:user_id/role", handlers.GetUserSafeRole)
+        protected.POST("/safes/:safeId/permissions/check", handlers.CheckPermission)
+        
+        // 权限定义管理路由
+        protected.GET("/permissions/definitions", handlers.GetPermissionDefinitionsV2)
+        protected.POST("/permissions/definitions", handlers.CreatePermissionDefinition)
+        protected.PUT("/permissions/definitions/:id", handlers.UpdatePermissionDefinition)
+        protected.DELETE("/permissions/definitions/:id", handlers.DeletePermissionDefinition)
+        protected.PATCH("/permissions/definitions/:id/toggle", handlers.TogglePermissionDefinition)
+        protected.GET("/permissions/categories", handlers.GetPermissionCategories)
+        protected.GET("/permissions/scopes", handlers.GetPermissionScopes)
+        
+        protected.GET("/safes/:safeId/permissions/audit-logs", handlers.GetPermissionAuditLogs)
+
+		// 策略管理路由
+		protected.GET("/safes/:safeId/policies", middleware.RequireSafeAccess("safe.policy.view"), handlers.GetSafePolicies)
+		protected.POST("/safes/:safeId/policies", middleware.RequireSafeAccess("safe.policy.manage"), handlers.CreateSafePolicy)
+		protected.POST("/policies/validate", middleware.RequireSystemPermission("system.policy.validate"), handlers.ValidatePolicy)
+
+		// 权限模板路由
+		protected.GET("/role-templates", handlers.GetRoleTemplates)
+		protected.GET("/role-templates/:id", handlers.GetRoleTemplate)
+		protected.POST("/role-templates/validate", middleware.RequireSystemPermission("system.permission.manage"), handlers.ValidateRoleTemplate)
+		protected.POST("/role-templates/custom", middleware.RequireSystemPermission("system.permission.manage"), handlers.CreateCustomRoleTemplate)
+		protected.GET("/safes/:safeId/recommended-role", middleware.RequireSafeAccess("safe.member.view"), handlers.GetRecommendedRole)
+		protected.POST("/safes/:safeId/apply-template/:template_id", middleware.RequireSafeAccess("safe.member.manage"), handlers.ApplyRoleTemplate)
+
+		// Safe角色模板管理路由（新增）
+		protected.POST("/safe-role-templates/apply", middleware.RequireAnyPermission("system.permission.manage", "safe.member.manage"), safeRoleTemplateHandler.ApplyTemplateToSafes)
+		protected.GET("/safes/:safeId/role-templates", middleware.RequireSafeAccess("safe.member.view"), safeRoleTemplateHandler.GetSafeRoleTemplates)
+		protected.DELETE("/safes/:safeId/role-templates/:templateId", middleware.RequireSafeAccess("safe.member.manage"), safeRoleTemplateHandler.RemoveTemplateFromSafe)
+		protected.GET("/safes/:safeId/available-roles", middleware.RequireSafeAccess("safe.member.view"), safeRoleTemplateHandler.GetAvailableRolesForSafe)
+		protected.GET("/safes/:safeId/debug-templates", middleware.RequireSafeAccess("safe.member.view"), safeRoleTemplateHandler.DebugSafeRoleTemplates) // 临时调试接口
+		protected.GET("/safe-role-templates/stats", middleware.RequireSystemPermission("system.audit.view"), safeRoleTemplateHandler.GetSafeRoleTemplateStats)
+
+		// Safe自定义角色管理路由（新增）
+		protected.POST("/safes/:safeId/custom-roles", middleware.RequireSafeAccess("safe.member.manage"), safeCustomRoleHandler.CreateCustomRole)
+		protected.GET("/safes/:safeId/custom-roles", middleware.RequireSafeAccess("safe.member.view"), safeCustomRoleHandler.GetCustomRoles)
+		protected.PUT("/safes/:safeId/custom-roles/:roleId", middleware.RequireSafeAccess("safe.member.manage"), safeCustomRoleHandler.UpdateCustomRole)
+		protected.DELETE("/safes/:safeId/custom-roles/:roleId", middleware.RequireSafeAccess("safe.member.manage"), safeCustomRoleHandler.DeleteCustomRole)
+		protected.GET("/safes/:safeId/custom-roles/stats", middleware.RequireSafeAccess("safe.member.view"), safeCustomRoleHandler.GetRoleUsageStats)
+
+		// 系统角色模板路由（用于Safe创建时的角色选择）
+		protected.GET("/system-role-templates", systemRoleTemplateHandler.GetSystemRoleTemplates)
+		protected.GET("/system-role-templates/default-creator", systemRoleTemplateHandler.GetDefaultCreatorRole)
+		protected.GET("/system-role-templates/:roleId", systemRoleTemplateHandler.GetRoleTemplateByID)
+		
+		// Safe创建专用角色模板路由
+		protected.GET("/role-templates/safe-creation", handlers.GetRoleTemplatesForSafeCreation)
+
+		// 权限映射管理路由（新增）
+		protected.GET("/permission-mappings", middleware.RequireSystemPermission("system.permission.view"), handlers.GetPermissionMappings)
+		protected.GET("/permission-mappings/type/:type", middleware.RequireSystemPermission("system.permission.view"), handlers.GetPermissionMappingsByType)
+		protected.GET("/permission-mappings/user", handlers.GetUserPermissionMappings) // 用户获取自己的权限映射，无需额外权限
+		protected.GET("/permission-mappings/stats", middleware.RequireSystemPermission("system.audit.view"), handlers.GetPermissionMappingStats)
+		protected.PUT("/permission-mappings/:code", middleware.RequireSystemPermission("system.permission.manage"), handlers.UpdatePermissionMapping)
+		protected.POST("/permission-mappings/validate", middleware.RequireSystemPermission("system.permission.manage"), handlers.ValidatePermissionMapping)
+		protected.GET("/permission-mappings/element/:elementId", handlers.GetPermissionMappingByElement)
+		protected.GET("/permission-mappings/api", handlers.GetPermissionMappingByAPI)
 	}
 
 	return router

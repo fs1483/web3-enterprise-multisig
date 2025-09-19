@@ -8,11 +8,13 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 
 	"web3-enterprise-multisig/internal/auth"
 	"web3-enterprise-multisig/internal/database"
 	"web3-enterprise-multisig/internal/models"
+	"web3-enterprise-multisig/internal/services"
 	"web3-enterprise-multisig/internal/validators"
 )
 
@@ -85,6 +87,12 @@ func Register(c *gin.Context) {
 			"code":  "CREATE_USER_ERROR",
 		})
 		return
+	}
+
+	// 初始化用户权限
+	if err := initializeUserPermissions(user.ID, user.Role); err != nil {
+		// 权限初始化失败不影响用户创建，只记录错误
+		fmt.Printf("Warning: Failed to initialize permissions for user %s: %v\n", user.ID, err)
 	}
 
 	// 生成 JWT token
@@ -279,6 +287,12 @@ func WalletRegister(c *gin.Context) {
 		return
 	}
 
+	// 初始化用户权限
+	if err := initializeUserPermissions(user.ID, user.Role); err != nil {
+		// 权限初始化失败不影响用户创建，只记录错误
+		fmt.Printf("Warning: Failed to initialize permissions for user %s: %v\n", user.ID, err)
+	}
+
 	// 生成 JWT token
 	token, err := auth.GenerateToken(user.ID, user.Username, user.Role)
 	if err != nil {
@@ -405,4 +419,23 @@ func verifyWalletSignature(message, signature, expectedAddress string) bool {
 	
 	// 比较地址（不区分大小写）
 	return strings.EqualFold(recoveredAddress.Hex(), expectedAddress)
+}
+
+// initializeUserPermissions 初始化用户权限
+func initializeUserPermissions(userID uuid.UUID, userRole string) error {
+	// 创建权限服务实例
+	permissionService := services.NewPermissionService(database.DB)
+	
+	// 根据用户角色初始化基础权限
+	switch userRole {
+	case "admin":
+		// 管理员获得系统级权限
+		return permissionService.InitializeSystemAdminPermissions(userID.String())
+	case "user":
+		// 普通用户获得基础权限
+		return permissionService.InitializeBasicUserPermissions(userID.String())
+	default:
+		// 默认权限
+		return permissionService.InitializeBasicUserPermissions(userID.String())
+	}
 }

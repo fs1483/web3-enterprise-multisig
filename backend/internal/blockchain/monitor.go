@@ -2,6 +2,7 @@ package blockchain
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"sync"
@@ -586,6 +587,12 @@ func (m *SafeCreationMonitor) createSafeRecord(tx *models.SafeTransaction) error
 		// 创建Safe记录
 		if err := dbTx.Create(&safe).Error; err != nil {
 			return fmt.Errorf("创建Safe记录失败: %w", err)
+		}
+
+		// 初始化Safe权限配置（使用创建时指定的角色分配）
+		if err := m.initializeSafePermissions(safe.ID, tx); err != nil {
+			// 权限初始化失败不影响Safe创建，只记录错误
+			log.Printf("Warning: Failed to initialize Safe permissions for Safe %s: %v", safe.ID, err)
 		}
 
 		// 更新交易状态为已处理
@@ -1173,4 +1180,107 @@ func (m *SafeCreationMonitor) notifyProposalExecutionResult(proposalID uuid.UUID
 
 	log.Printf("📡 已发送提案执行结果通知: 提案ID=%s, 状态=%s, 交易哈希=%s", 
 		proposalID.String(), status, txHash)
+}
+
+// initializeSafePermissions 初始化Safe权限配置（使用创建时指定的角色分配）
+func (m *SafeCreationMonitor) initializeSafePermissions(safeID uuid.UUID, tx *models.SafeTransaction) error {
+	// 解析成员角色信息
+	var memberRoles []struct {
+		Address string `json:"address"`
+		RoleID  string `json:"role_id"`
+	}
+	
+	if tx.MemberRoles != "" && tx.MemberRoles != "[]" {
+		if err := json.Unmarshal([]byte(tx.MemberRoles), &memberRoles); err != nil {
+			log.Printf("Warning: Failed to parse member roles JSON: %v", err)
+			// 如果解析失败，使用默认角色分配
+			return m.initializeSafePermissionsDefault(safeID, tx.UserID, tx.Owners)
+		}
+	}
+	
+	// 如果没有角色分配信息，使用默认分配
+	if len(memberRoles) == 0 {
+		log.Printf("No member roles specified, using default role assignment")
+		return m.initializeSafePermissionsDefault(safeID, tx.UserID, tx.Owners)
+	}
+	
+	// 创建Safe角色模板服务实例
+	safeRoleTemplateService := services.NewSafeRoleTemplateService(m.db)
+	permissionTemplateService := services.NewPermissionTemplateService(m.db)
+	
+	log.Printf("🎯 开始应用成员角色分配: %d个成员", len(memberRoles))
+	
+	// 为每个成员应用指定的角色模板
+	for _, memberRole := range memberRoles {
+		// 查找钱包地址对应的用户
+		var user models.User
+		if err := m.db.Where("wallet_address = ?", memberRole.Address).First(&user).Error; err != nil {
+			log.Printf("Warning: Owner address %s not found in users table, skipping role assignment", memberRole.Address)
+			continue
+		}
+		
+		// 获取角色模板信息
+		roleTemplate, err := permissionTemplateService.GetRoleTemplate(memberRole.RoleID)
+		if err != nil {
+			log.Printf("Warning: Role template %s not found, skipping assignment for user %s", memberRole.RoleID, user.ID)
+			continue
+		}
+		
+		// 应用角色模板到Safe（相当于自动执行"应用权限模板"操作）
+		req := services.ApplyTemplateToSafesRequest{
+			TemplateID: memberRole.RoleID,
+			SafeIDs:    []uuid.UUID{safeID},
+		}
+		err = safeRoleTemplateService.ApplyTemplateToSafes(context.Background(), req, tx.UserID)
+		if err != nil {
+			log.Printf("Warning: Failed to apply role template %s to Safe %s: %v", memberRole.RoleID, safeID, err)
+			// 继续处理其他用户，不返回错误
+		} else {
+			log.Printf("✅ Applied role template %s (%s) to Safe %s for user %s", 
+				memberRole.RoleID, roleTemplate.DisplayName, safeID, user.ID)
+		}
+	}
+	
+	log.Printf("✅ Safe权限初始化完成: SafeID=%s, 应用了%d个角色模板", safeID, len(memberRoles))
+	return nil
+}
+
+// initializeSafePermissionsDefault 使用默认角色分配初始化Safe权限配置（备用方法）
+func (m *SafeCreationMonitor) initializeSafePermissionsDefault(safeID uuid.UUID, creatorID uuid.UUID, owners []string) error {
+	// 创建权限服务实例
+	permissionService := services.NewPermissionService(m.db)
+	
+	// 为Safe创建者分配safe_admin角色
+	err := permissionService.AssignSafeRole(context.Background(), safeID, creatorID, creatorID, "safe_admin", map[string]interface{}{})
+	if err != nil {
+		log.Printf("Failed to assign safe_admin role to creator %s for Safe %s: %v", creatorID, safeID, err)
+		return fmt.Errorf("分配创建者管理员角色失败: %w", err)
+	}
+	
+	// 为其他所有者分配默认角色
+	for _, ownerAddress := range owners {
+		// 查找钱包地址对应的用户
+		var user models.User
+		if err := m.db.Where("wallet_address = ?", ownerAddress).First(&user).Error; err != nil {
+			log.Printf("Warning: Owner address %s not found in users table, skipping role assignment", ownerAddress)
+			continue
+		}
+		
+		// 如果是创建者，跳过（已经分配了admin角色）
+		if user.ID == creatorID {
+			continue
+		}
+		
+		// 为其他所有者分配safe_operator角色
+		err := permissionService.AssignSafeRole(context.Background(), safeID, user.ID, creatorID, "safe_operator", map[string]interface{}{})
+		if err != nil {
+			log.Printf("Warning: Failed to assign safe_operator role to user %s for Safe %s: %v", user.ID, safeID, err)
+			// 继续处理其他用户，不返回错误
+		} else {
+			log.Printf("✅ Assigned safe_operator role to user %s for Safe %s", user.ID, safeID)
+		}
+	}
+	
+	log.Printf("✅ Safe默认权限初始化完成: SafeID=%s, 创建者=%s", safeID, creatorID)
+	return nil
 }
