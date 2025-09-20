@@ -1,0 +1,115 @@
+version: '3.8'
+
+services:
+  # 后端服务
+  backend:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+    container_name: multisig-backend
+    environment:
+      # 数据库配置 - 通过环境变量灵活配置
+      - DB_HOST=${DB_HOST:-postgres}
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_NAME=${DB_NAME:-multisig_db}
+      - DB_USER=${DB_USER:-multisig_user}
+      - DB_PASSWORD=${DB_PASSWORD:-multisig_password}
+      - DB_SSLMODE=${DB_SSLMODE:-disable}
+      
+      # JWT 配置
+      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      - GIN_MODE=${GIN_MODE:-release}
+      - PORT=${PORT:-8080}
+      
+      # 区块链配置
+      - ETHEREUM_RPC_URL=${ETHEREUM_RPC_URL}
+      - BLOCKCHAIN_WS_URL=${BLOCKCHAIN_WS_URL}
+      - SAFE_FACTORY_ADDRESS=${SAFE_FACTORY_ADDRESS}
+      - SAFE_SINGLETON_ADDRESS=${SAFE_SINGLETON_ADDRESS}
+      - PRIVATE_KEY=${PRIVATE_KEY}
+      - SAFE_SERVICE_URL=${SAFE_SERVICE_URL}
+      
+      # CORS 配置
+      - CORS_ORIGINS=${CORS_ORIGINS}
+    ports:
+      - "${BACKEND_PORT:-5174}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+        required: false  # 如果使用外部数据库，则不依赖本地 postgres
+    networks:
+      - multisig-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  # 前端服务
+  frontend:
+    build:
+      context: ../../frontend
+      dockerfile: Dockerfile
+      args:
+        # 前端构建时环境变量 - 从部署配置文件读取
+        - VITE_API_BASE_URL=${VITE_API_BASE_URL:-http://localhost:5174}
+        - VITE_WS_URL=${VITE_WS_URL:-ws://localhost:5174/ws}
+        - VITE_CHAIN_ID=${VITE_CHAIN_ID:-11155111}
+        - VITE_CHAIN_NAME=${VITE_CHAIN_NAME:-Sepolia}
+        - VITE_RPC_URL=${VITE_RPC_URL}
+        - VITE_BLOCK_EXPLORER=${VITE_BLOCK_EXPLORER:-https://sepolia.etherscan.io}
+        - VITE_SAFE_SERVICE_URL=${VITE_SAFE_SERVICE_URL:-https://safe-transaction-sepolia.safe.global}
+    container_name: multisig-frontend
+    environment:
+      # 前端运行时配置
+      - NGINX_HOST=${FRONTEND_HOST:-localhost}
+      - NGINX_PORT=80
+    ports:
+      - "${FRONTEND_PORT:-5173}:80"
+      - "${FRONTEND_HTTPS_PORT:-443}:443"
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - multisig-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # 本地 PostgreSQL 数据库 (可选)
+  # 如果使用云数据库，可以通过 --profile local-db 来启用
+  postgres:
+    image: postgres:15-alpine
+    container_name: multisig-postgres
+    profiles: ["local-db"]  # 仅在指定 profile 时启动
+    environment:
+      POSTGRES_DB: ${DB_NAME:-multisig_db}
+      POSTGRES_USER: ${DB_USER:-multisig_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-multisig_password}
+    ports:
+      - "${DB_EXTERNAL_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../../database/migrations:/docker-entrypoint-initdb.d:ro
+    networks:
+      - multisig-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-multisig_user} -d ${DB_NAME:-multisig_db}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  multisig-network:
+    driver: bridge

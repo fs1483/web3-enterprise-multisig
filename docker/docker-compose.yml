@@ -16,13 +16,14 @@ services:
     networks:
       - multisig-network
 
-  redis:
-    image: redis:7-alpine
-    container_name: multisig-redis
-    ports:
-      - "6379:6379"
-    networks:
-      - multisig-network
+# 为了系统部署简单Redis 服务暂时系统不用 - 预留扩展和设计，后续业务需要随时启用
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: multisig-redis
+  #   ports:
+  #     - "6379:6379"
+  #   networks:
+  #     - multisig-network
 
 volumes:
   postgres_data:
