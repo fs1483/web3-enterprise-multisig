@@ -13,6 +13,7 @@ vendor/
 /frontend/dist
 /backend/tmp
 /backend/bin
+/temp_images
 
 # Logs
 *.log
@@ -41,6 +42,8 @@ Thumbs.db
 *.test
 *.out
 go.work
+*.tar.gz
+*.tar
 
 # Node specific
 npm-debug.log*

@@ -1,0 +1,131 @@
+version: '3.8'
+
+# =====================================================
+# Web3 企业多签系统 Docker Compose 配置 (镜像部署策略)
+# 版本: v2.0
+# 功能: 使用预构建镜像进行快速部署
+# 部署策略: 从远程仓库拉取镜像直接部署
+# 端口配置: 前端 5173, 后端 5174
+# =====================================================
+
+services:
+  # 后端服务
+  backend:
+    image: ${DOCKER_REGISTRY}/${PROJECT_NAME}-backend:${IMAGE_TAG:-latest}
+    container_name: ${PROJECT_NAME:-multisig}-backend
+    environment:
+      # 数据库配置 - 通过环境变量灵活配置
+      - DB_HOST=${DB_HOST:-postgres}
+      - DB_PORT=${DB_PORT:-5432}
+      - DB_NAME=${DB_NAME:-multisig_db}
+      - DB_USER=${DB_USER:-multisig_user}
+      - DB_PASSWORD=${DB_PASSWORD:-multisig_password}
+      - DB_SSLMODE=${DB_SSLMODE:-disable}
+      
+      # JWT 配置
+      - JWT_SECRET=${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      - JWT_EXPIRES_IN=${JWT_EXPIRES_IN:-24h}
+      - GIN_MODE=${GIN_MODE:-release}
+      - PORT=${PORT:-8080}
+      
+      # Redis 配置 (暂时不使用)
+      # - REDIS_HOST=${REDIS_HOST:-localhost}
+      # - REDIS_PORT=${REDIS_PORT:-6379}
+      # - REDIS_PASSWORD=${REDIS_PASSWORD}
+      
+      # 区块链配置
+      - ETHEREUM_RPC_URL=${ETHEREUM_RPC_URL}
+      - BLOCKCHAIN_WS_URL=${BLOCKCHAIN_WS_URL}
+      - PRIVATE_KEY=${PRIVATE_KEY}
+      - SAFE_SERVICE_URL=${SAFE_SERVICE_URL}
+      
+      # CORS 配置
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
+    ports:
+      - "${BACKEND_PORT:-5174}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - multisig-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # 前端服务已移至 docker-compose-frontend-only.yml 单独部署
+  # frontend:
+  #   image: ${DOCKER_REGISTRY}/${PROJECT_NAME}-frontend:${IMAGE_TAG:-latest}
+  #   container_name: ${PROJECT_NAME:-multisig}-frontend
+  #   environment:
+  #     # 前端运行时配置
+  #     - NGINX_HOST=${FRONTEND_HOST:-localhost}
+  #     - NGINX_PORT=80
+  #   ports:
+  #     - "${FRONTEND_PORT:-5173}:80"
+  #     # HTTPS 端口（可选，仅生产环境需要）
+  #     # - "${FRONTEND_HTTPS_PORT:-8443}:443"
+  #   # depends_on:
+  #   #   backend:
+  #   #     condition: service_healthy
+  #   networks:
+  #     - multisig-network
+  #   restart: unless-stopped
+  #   healthcheck:
+  #     test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 5
+  #     start_period: 30s
+  #   logging:
+  #     driver: "json-file"
+  #     options:
+  #       max-size: "10m"
+  #       max-file: "3"
+
+  # 本地 PostgreSQL 数据库 (可选)
+  # 如果使用云数据库，可以通过 --profile local-db 来启用
+  postgres:
+    image: postgres:15-alpine
+    container_name: ${PROJECT_NAME:-multisig}-postgres-fast
+    profiles: ["local-db"]  # 仅在指定 profile 时启动
+    environment:
+      POSTGRES_DB: ${DB_NAME:-multisig_db}
+      POSTGRES_USER: ${DB_USER:-multisig_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-multisig_password}
+    ports:
+      - "${DB_EXTERNAL_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ../../database/migrations:/docker-entrypoint-initdb.d:ro
+    networks:
+      - multisig-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-multisig_user} -d ${DB_NAME:-multisig_db}"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  multisig-network:
+    driver: bridge
+    name: ${PROJECT_NAME:-multisig}-network-fast
