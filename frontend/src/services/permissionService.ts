@@ -7,6 +7,7 @@
 // =====================================================
 
 import React from 'react';
+import { buildApiUrl, API_ENDPOINTS, getAuthHeaders } from '../config/api';
 
 // =====================================================
 // 类型定义
@@ -96,10 +97,10 @@ export class PermissionService {
       throw new Error('No authentication token');
     }
 
-    const response = await fetch(`http://localhost:8080/api/v1/safes/${safeId}/members`, {
+    const response = await fetch(buildApiUrl(API_ENDPOINTS.SAFES.MEMBERS(safeId)), {
       headers: {
         'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
       },
     });
 
@@ -117,11 +118,11 @@ export class PermissionService {
       throw new Error('No authentication token');
     }
 
-    const response = await fetch(`http://localhost:8080/api/v1/safes/${safeId}/members/roles`, {
+    const response = await fetch(buildApiUrl(`/api/v1/safes/${safeId}/members/roles`), {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
       },
       body: JSON.stringify(request),
     });
@@ -137,11 +138,11 @@ export class PermissionService {
       throw new Error('No authentication token');
     }
 
-    const response = await fetch(`http://localhost:8080/api/v1/safes/${safeId}/members/${userId}`, {
+    const response = await fetch(buildApiUrl(`/api/v1/safes/${safeId}/members/${userId}`), {
       method: 'DELETE',
       headers: {
         'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
       },
     });
 
@@ -156,10 +157,10 @@ export class PermissionService {
       throw new Error('No authentication token');
     }
 
-    const response = await fetch(`http://localhost:8080/api/v1/safes/${safeId}/members/${userId}/role`, {
+    const response = await fetch(buildApiUrl(`/api/v1/safes/${safeId}/members/${userId}/role`), {
       headers: {
         'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
       },
     });
 
@@ -178,11 +179,11 @@ export class PermissionService {
       throw new Error('No authentication token');
     }
 
-    const response = await fetch(`http://localhost:8080/api/v1/safes/${safeId}/permissions/check`, {
+    const response = await fetch(buildApiUrl(API_ENDPOINTS.PERMISSIONS.CHECK(safeId)), {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
       },
       body: JSON.stringify(request),
     });
@@ -202,10 +203,10 @@ export class PermissionService {
       throw new Error('No authentication token');
     }
 
-    const response = await fetch('http://localhost:8080/api/v1/permissions/definitions', {
+    const response = await fetch(buildApiUrl(API_ENDPOINTS.PERMISSIONS.DEFINITIONS), {
       headers: {
         'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
       },
     });
 
@@ -223,11 +224,11 @@ export class PermissionService {
       throw new Error('No authentication token');
     }
 
-    const response = await fetch('http://localhost:8080/api/v1/permissions/definitions', {
+    const response = await fetch(buildApiUrl(API_ENDPOINTS.PERMISSIONS.DEFINITIONS), {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
       },
       body: JSON.stringify(request),
     });
@@ -244,7 +245,7 @@ export class PermissionService {
       throw new Error('No authentication token');
     }
 
-    let url = `http://localhost:8080/api/v1/safes/${safeId}/permissions/audit-logs`;
+    let url = buildApiUrl(API_ENDPOINTS.PERMISSIONS.AUDIT_LOGS(safeId));
     if (params) {
       const searchParams = new URLSearchParams();
       if (params.page) searchParams.append('page', params.page.toString());
@@ -257,7 +258,7 @@ export class PermissionService {
     const response = await fetch(url, {
       headers: {
         'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
       },
     });
 

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { buildApiUrl, API_ENDPOINTS, getAuthHeaders } from '../config/api';
 import { useAuthStore } from './authStore';
 
 // Dashboard卡片数据接口定义
@@ -58,14 +59,14 @@ export const dashboardStore = create<DashboardState>((set) => ({
       }
 
       // 调用新的Dashboard Cards API
-      const apiUrl = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/dashboard/cards`;
+      const apiUrl = `${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/dashboard/cards`;
       console.log('Dashboard API调用 - URL:', apiUrl);
       
       const response = await fetch(apiUrl, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${authData.token}`,
-          'Content-Type': 'application/json',
+          ...getAuthHeaders(),
         },
       });
 

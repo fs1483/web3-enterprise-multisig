@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { buildApiUrl, API_ENDPOINTS, getAuthHeaders } from '../config/api';
 import { persist } from 'zustand/middleware';
 
 // 通知类型定义
@@ -141,7 +142,7 @@ export const useNotificationStore = create<NotificationStore>()(
 
         try {
           // 构建WebSocket URL
-          const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+          const baseUrl = import.meta.env.VITE_API_BASE_URL || buildApiUrl('');
           const wsUrl = baseUrl.replace('http://', 'ws://').replace('https://', 'wss://');
           const fullWsUrl = `${wsUrl}/ws?token=${encodeURIComponent(token)}`;
 

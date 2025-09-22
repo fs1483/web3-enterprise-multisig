@@ -1,4 +1,5 @@
 // =====================================================
+import { buildApiUrl, API_ENDPOINTS, getAuthHeaders } from '../../config/api';
 // Safe级权限管理模块
 // 版本: v1.0
 // 功能: Safe级权限管理，包含Safe选择、成员管理、角色配置、权限模板
@@ -151,16 +152,15 @@ const SafeLevelPermissions: React.FC<SafeLevelPermissionsProps> = ({
       setRefreshing(true);
       onLoading(true);
       
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/safes`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/safes`, {
+        headers: getAuthHeaders(token || undefined)
       });
       
       if (response.ok) {
         const data = await response.json();
-        setSafes(data.safes || data || []);
+        // 确保 safes 始终是一个数组
+        const safesData = data.safes || data || [];
+        setSafes(Array.isArray(safesData) ? safesData : []);
         
         // 如果还没有选择Safe且没有预选Safe ID，默认选择第一个
         if (!selectedSafe && !preSelectedSafeId && data.safes && data.safes.length > 0) {
@@ -185,18 +185,15 @@ const SafeLevelPermissions: React.FC<SafeLevelPermissionsProps> = ({
     try {
       onLoading(true);
       
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/safes/${safeId}/members`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/safes/${safeId}/members`, {
+        headers: getAuthHeaders(token || undefined)
       });
       
       if (response.ok) {
         const data = await response.json();
         console.log('Safe成员数据:', data); // 调试日志
         
-        // 处理后端返回的数据结构
+        // 处理后端返回的数据结构，确保始终是数组
         let members = [];
         if (data.success && data.data && data.data.members) {
           members = data.data.members;
@@ -206,7 +203,8 @@ const SafeLevelPermissions: React.FC<SafeLevelPermissionsProps> = ({
           members = data;
         }
         
-        setSafeMembers(members);
+        // 确保 members 始终是一个数组
+        setSafeMembers(Array.isArray(members) ? members : []);
         onError('');
       } else {
         const errorData = await response.json().catch(() => ({}));
@@ -226,11 +224,8 @@ const SafeLevelPermissions: React.FC<SafeLevelPermissionsProps> = ({
       onLoading(true);
       
       // 使用统一的API端点获取Safe的所有可用角色（包括权限模板和自定义角色）
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/safes/${safeId}/available-roles`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        }
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/safes/${safeId}/available-roles`, {
+        headers: getAuthHeaders(token || undefined)
       });
       
       if (response.ok) {
@@ -283,12 +278,9 @@ const SafeLevelPermissions: React.FC<SafeLevelPermissionsProps> = ({
     try {
       onLoading(true);
       
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/safes/${selectedSafe.id}/roles`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/safes/${selectedSafe.id}/roles`, {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
+        headers: getAuthHeaders(token || undefined),
         body: JSON.stringify(newRole)
       });
       
@@ -324,11 +316,10 @@ const SafeLevelPermissions: React.FC<SafeLevelPermissionsProps> = ({
     try {
       onLoading(true);
       
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/safes/${selectedSafe.id}/roles/${editingRole.role}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/safes/${selectedSafe.id}/roles/${editingRole.role}`, {
         method: 'PUT',
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          ...getAuthHeaders(token || undefined)
         },
         body: JSON.stringify({
           name: editingRole.name,
@@ -376,11 +367,10 @@ const SafeLevelPermissions: React.FC<SafeLevelPermissionsProps> = ({
     try {
       onLoading(true);
       
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/safes/${selectedSafe.id}/roles/${role}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/safes/${selectedSafe.id}/roles/${role}`, {
         method: 'DELETE',
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          ...getAuthHeaders(token || undefined)
         }
       });
       
@@ -405,11 +395,10 @@ const SafeLevelPermissions: React.FC<SafeLevelPermissionsProps> = ({
     try {
       onLoading(true);
       
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/role-templates/custom`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/role-templates/custom`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          ...getAuthHeaders(token || undefined)
         },
         body: JSON.stringify(newTemplate)
       });
@@ -443,10 +432,9 @@ const SafeLevelPermissions: React.FC<SafeLevelPermissionsProps> = ({
     try {
       onLoading(true);
       
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/role-templates?category=safe`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/role-templates?category=safe`, {
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          ...getAuthHeaders(token || undefined)
         }
       });
       
@@ -497,11 +485,10 @@ const SafeLevelPermissions: React.FC<SafeLevelPermissionsProps> = ({
     try {
       onLoading(true);
       
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/safes/${selectedSafe.id}/members/roles`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/safes/${selectedSafe.id}/members/roles`, {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          ...getAuthHeaders(token || undefined)
         },
         body: JSON.stringify({
           user_email: newMemberEmail.trim(),
@@ -532,16 +519,17 @@ const SafeLevelPermissions: React.FC<SafeLevelPermissionsProps> = ({
   // 获取Safe可用角色
   const fetchAvailableRoles = async (safeId: string) => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/safes/${safeId}/available-roles`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/safes/${safeId}/available-roles`, {
         headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          ...getAuthHeaders(token || undefined)
         }
       });
 
       if (response.ok) {
         const data = await response.json();
-        setAvailableRoles(data.data?.roles || []);
+        // 确保 roles 始终是一个数组
+        const roles = data.data?.roles || [];
+        setAvailableRoles(Array.isArray(roles) ? roles : []);
       } else {
         console.warn('获取可用角色失败:', response.status);
         setAvailableRoles([]);
@@ -646,7 +634,7 @@ const SafeLevelPermissions: React.FC<SafeLevelPermissionsProps> = ({
       {/* Safe列表 */}
       {(showSafeSelector || !selectedSafe) && (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {safes.map((safe) => (
+          {safes && safes.length > 0 ? safes.map((safe) => (
             <div
               key={safe.id}
               className={`cursor-pointer transition-all duration-200 hover:shadow-lg ${
@@ -680,15 +668,16 @@ const SafeLevelPermissions: React.FC<SafeLevelPermissionsProps> = ({
                 </div>
               </Card>
             </div>
-          ))}
+          )) : (
+            <div className="col-span-full">
+              <Card className="p-8 text-center">
+                <Building className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                <p className="text-gray-500 mb-2">暂无Safe钱包</p>
+                <p className="text-sm text-gray-400">请先创建一个Safe钱包来管理权限</p>
+              </Card>
+            </div>
+          )}
         </div>
-      )}
-
-      {safes.length === 0 && (
-        <Card className="p-8 text-center">
-          <Building className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-gray-500">暂无Safe钱包</p>
-        </Card>
       )}
     </div>
   );
@@ -764,7 +753,7 @@ const SafeLevelPermissions: React.FC<SafeLevelPermissionsProps> = ({
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {safeMembers.map((member, index) => (
+                {safeMembers && safeMembers.length > 0 ? safeMembers.map((member, index) => (
                   <tr key={member.id || `member-${index}`} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div>
@@ -822,16 +811,17 @@ const SafeLevelPermissions: React.FC<SafeLevelPermissionsProps> = ({
                       </div>
                     </td>
                   </tr>
-                ))}
+                )) : (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-8 text-center">
+                      <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-gray-500">暂无成员数据</p>
+                      <p className="text-sm text-gray-400 mt-1">请添加成员来管理Safe权限</p>
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
-            
-            {safeMembers.length === 0 && (
-              <div className="text-center py-8">
-                <Users className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                <p className="text-gray-500">暂无成员数据</p>
-              </div>
-            )}
           </div>
         </Card>
       </div>
@@ -1294,13 +1284,10 @@ const SafeLevelPermissions: React.FC<SafeLevelPermissionsProps> = ({
         
         // 调用更新成员角色的API
         const response = await fetch(
-          `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/safes/${selectedSafe?.id}/members/roles`,
+          `${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/safes/${selectedSafe?.id}/members/roles`,
           {
             method: 'POST',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            },
+            headers: getAuthHeaders(token || undefined),
             body: JSON.stringify({
               user_id: editingMember.user_id,
               role: newMemberRole,

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAuthStore } from '../stores/authStore';
+import { getAuthHeaders } from '../config/api';
 
 interface ChangePasswordProps {
   onClose?: () => void;
@@ -63,7 +64,7 @@ const ChangePassword: React.FC<ChangePasswordProps> = ({ onClose, onSuccess }) =
       const response = await fetch('/api/v1/users/change-password', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          ...getAuthHeaders(),
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({

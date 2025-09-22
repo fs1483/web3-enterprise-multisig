@@ -1,4 +1,5 @@
 // =====================================================
+import { buildApiUrl, API_ENDPOINTS, getAuthHeaders } from '../config/api';
 // Safe角色配置调试工具
 // 用于分析角色配置显示问题
 // =====================================================
@@ -32,10 +33,10 @@ const SafeRoleDebugger: React.FC = () => {
       setLoading(true);
       setError('');
       
-      const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+      const baseURL = import.meta.env.VITE_API_BASE_URL || buildApiUrl('');
       const headers = {
         'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
+        ...getAuthHeaders()
       };
 
       // 1. 获取Safe的角色配置（旧API）

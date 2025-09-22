@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { buildApiUrl, API_ENDPOINTS, getAuthHeaders } from '../../config/api';
 import { useNavigate } from 'react-router-dom';
 import { 
   Clock, 
@@ -89,11 +90,11 @@ const SafeTransactionHistoryPage: React.FC = () => {
     try {
       setLoading(true);
       const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/safe-transactions`,
+        `${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/safe-transactions`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
+            ...getAuthHeaders()
           }
         }
       );

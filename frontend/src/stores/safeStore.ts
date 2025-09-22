@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { buildApiUrl, API_ENDPOINTS, getAuthHeaders } from '../config/api';
 
 export interface Safe {
   id: string;
@@ -56,7 +57,7 @@ export const useSafeStore = create<SafeState & SafeActions>((set, get) => ({
       const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/v1/safes`, {
         headers: {
           'Authorization': `Bearer ${authData.state.token}`,
-          'Content-Type': 'application/json',
+          ...getAuthHeaders(),
         },
       });
 
@@ -116,7 +117,7 @@ export const useSafeStore = create<SafeState & SafeActions>((set, get) => ({
         throw new Error('No authentication token');
       }
 
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/safes/${address}`, {
+      const response = await fetch(buildApiUrl(`/api/v1/safes/${address}`), {
         headers: {
           'Authorization': `Bearer ${authData.state.token}`,
         },
@@ -158,10 +159,10 @@ export const useSafeStore = create<SafeState & SafeActions>((set, get) => ({
         throw new Error('No authentication token');
       }
 
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/safes`, {
+      const response = await fetch(buildApiUrl('/api/v1/safes'), {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          ...getAuthHeaders(),
           'Authorization': `Bearer ${authData.state.token}`,
         },
         body: JSON.stringify(safeData),
@@ -210,10 +211,10 @@ export const useSafeStore = create<SafeState & SafeActions>((set, get) => ({
         throw new Error('No authentication token');
       }
 
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/safes/${address}`, {
+      const response = await fetch(buildApiUrl(`/api/v1/safes/${address}`), {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
+          ...getAuthHeaders(),
           'Authorization': `Bearer ${authData.state.token}`,
         },
         body: JSON.stringify(updates),

@@ -59,7 +59,7 @@ const UserSettings: React.FC = () => {
       const response = await fetch('/api/v1/users/profile', {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
+          ...getAuthHeaders(),
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify(editForm)

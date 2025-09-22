@@ -1,4 +1,5 @@
 // =====================================================
+import { buildApiUrl, API_ENDPOINTS, getAuthHeaders } from '../config/api';
 // Safe成员管理组件 - 企业级权限管理
 // 版本: v2.0
 // 功能: 集成角色配置和权限模板的成员管理
@@ -90,10 +91,10 @@ const MemberModal: React.FC<{
   // 获取可用用户列表
   const fetchAvailableUsers = async () => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/safes/${safeId}/available-users`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/safes/${safeId}/available-users`, {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          ...getAuthHeaders()
         }
       });
       
@@ -109,10 +110,10 @@ const MemberModal: React.FC<{
   // 获取可用角色列表（来自权限模板 + 自定义角色）
   const fetchAvailableRoles = async () => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/safes/${safeId}/available-roles`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/safes/${safeId}/available-roles`, {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          ...getAuthHeaders()
         }
       });
       
@@ -141,8 +142,8 @@ const MemberModal: React.FC<{
       setError(null);
 
       const url = isEdit 
-        ? `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/safes/${safeId}/members/${member?.user_id}`
-        : `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/safes/${safeId}/members/roles`;
+        ? `${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/safes/${safeId}/members/${member?.user_id}`
+        : `${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/safes/${safeId}/members/roles`;
 
       const method = isEdit ? 'PUT' : 'POST';
       const body = isEdit 
@@ -153,7 +154,7 @@ const MemberModal: React.FC<{
         method,
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          ...getAuthHeaders()
         },
         body: JSON.stringify(body)
       });
@@ -377,10 +378,10 @@ export const SafeMemberManagement: React.FC<SafeMemberManagementProps> = ({
       setLoading(true);
       setError(null);
       
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/safes/${safeId}/members`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/safes/${safeId}/members`, {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          ...getAuthHeaders()
         }
       });
       
@@ -403,11 +404,11 @@ export const SafeMemberManagement: React.FC<SafeMemberManagementProps> = ({
     if (!confirm(`确定要移除成员 "${username}" 吗？`)) return;
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/safes/${safeId}/members/${userId}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/safes/${safeId}/members/${userId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          ...getAuthHeaders()
         }
       });
 

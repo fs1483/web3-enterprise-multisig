@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { buildApiUrl, API_ENDPOINTS, getAuthHeaders } from '../config/api';
 import { Search, Edit, Save, X } from 'lucide-react';
 
 interface PermissionMapping {
@@ -53,11 +54,11 @@ export const PermissionMappingManager: React.FC = () => {
       if (searchTerm) params.append('search', searchTerm);
 
       const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/permission-mappings?${params}`,
+        `${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/permission-mappings?${params}`,
         {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`,
-            'Content-Type': 'application/json'
+            ...getAuthHeaders()
           }
         }
       );
@@ -83,11 +84,11 @@ export const PermissionMappingManager: React.FC = () => {
   const fetchStats = async () => {
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/permission-mappings/stats`,
+        `${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/permission-mappings/stats`,
         {
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`,
-            'Content-Type': 'application/json'
+            ...getAuthHeaders()
           }
         }
       );
@@ -107,12 +108,12 @@ export const PermissionMappingManager: React.FC = () => {
   const updateMapping = async (code: string, updates: Partial<PermissionMapping>) => {
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/permission-mappings/${code}`,
+        `${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/permission-mappings/${code}`,
         {
           method: 'PUT',
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('token')}`,
-            'Content-Type': 'application/json'
+            ...getAuthHeaders()
           },
           body: JSON.stringify({
             mapping_type: updates.mapping_type,

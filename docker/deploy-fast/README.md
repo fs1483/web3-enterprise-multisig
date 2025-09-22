@@ -91,15 +91,19 @@ ssh aliyun "cd /opt/multisig && ./load-frontend.sh -d"
 ### 步骤 4：后续更新
 
 ```bash
-# 4.1 更新后端
+# 4.1 更新后端（包含PostgreSQL）
 ./build.sh --backend-only
 ssh aliyun "cd /opt/multisig && ./load-images.sh -d"
 
-# 4.2 更新前端
+# 4.2 更新后端（不含PostgreSQL，适用于外部数据库）
+./build.sh --backend-only --no-database
+ssh aliyun "cd /opt/multisig && ./load-images.sh -d"
+
+# 4.3 更新前端（不含数据库）
 ./build.sh --frontend-only
 ssh aliyun "cd /opt/multisig && ./load-frontend.sh -d"
 
-# 4.3 更新全部
+# 4.4 更新全部
 ./build.sh
 ssh aliyun "cd /opt/multisig && ./load-images.sh -d && ./load-frontend.sh -d"
 ```
@@ -136,12 +140,54 @@ DOCKER_REGISTRY=your-registry.com
 
 ```bash
 # 基本用法
-./build.sh                          # 默认构建并SCP传输
+./build.sh                          # 默认构建并SCP传输（后端+前端+PostgreSQL）
 ./build.sh -p                       # 构建并推送到仓库
-./build.sh --backend-only            # 仅构建后端
-./build.sh --frontend-only           # 仅构建前端
 ./build.sh -t v1.0.0                # 指定镜像标签
 ./build.sh --no-cache               # 不使用构建缓存
+
+# 选择性构建
+./build.sh --backend-only            # 仅构建后端镜像（包含PostgreSQL）
+./build.sh --frontend-only           # 仅构建前端镜像（不包含PostgreSQL）
+./build.sh --no-database             # 不包含PostgreSQL镜像（适用于外部数据库）
+
+# 组合使用
+./build.sh --backend-only --no-database  # 仅构建后端，不含PostgreSQL
+./build.sh --frontend-only               # 仅构建前端
+```
+
+**参数说明**：
+- `--backend-only`: 只构建后端镜像，默认包含PostgreSQL数据库镜像
+- `--frontend-only`: 只构建前端镜像，不包含PostgreSQL数据库镜像
+- `--no-database`: 跳过PostgreSQL镜像处理，适用于使用外部数据库的场景
+- `-p, --push`: 推送到镜像仓库而非SCP传输
+- `-t, --tag`: 指定镜像标签
+- `--no-cache`: 构建时不使用Docker缓存
+
+### 🎯 常见使用场景
+
+**场景1：完整部署（推荐新用户）**
+```bash
+./build.sh                          # 构建所有组件
+```
+
+**场景2：只更新后端代码**
+```bash
+./build.sh --backend-only            # 包含PostgreSQL，适合本地数据库
+```
+
+**场景3：使用外部数据库**
+```bash
+./build.sh --backend-only --no-database  # 不包含PostgreSQL
+```
+
+**场景4：只更新前端**
+```bash
+./build.sh --frontend-only           # 仅前端镜像，不含数据库
+```
+
+**场景5：开发环境快速构建**
+```bash
+./build.sh --no-cache --backend-only # 强制重新构建后端
 ```
 
 ### first_transter_to_server.sh - 配置传输脚本
@@ -219,7 +265,7 @@ ssh aliyun "cd /opt/multisig && docker-compose -f docker-compose.yml -p multisig
 ssh aliyun "cd /opt/multisig && docker-compose -f docker-compose.yml -p multisig-fast logs -f"
 
 # 重启后端服务
-ssh aliyun "cd /opt/multisig && docker-compose -f docker-compose.yml -p multisig-fast restart"
+ssh aliyun "cd /opt/multisig && docker-compose -f docker-compose.yml -p multisig-fast restart backend"
 ```
 
 ### 前端管理
@@ -412,9 +458,204 @@ load-frontend.sh       load-images.sh         load-images.sh
    - SSH 私钥
    - 任何包含敏感信息的文件
 
+## 📋 日志查看和调试
+
+### 查看后端日志
+
+#### 1. 实时查看后端日志（推荐）
+```bash
+# 查看后端实时日志
+ssh aliyun "cd /opt/multisig && docker-compose -f docker-compose.yml -p multisig-fast logs -f backend"
+```
+
+#### 2. 查看最近的后端日志
+```bash
+# 查看最近100行日志
+ssh aliyun "cd /opt/multisig && docker-compose -f docker-compose.yml -p multisig-fast logs --tail=100 backend"
+
+# 查看最近500行日志
+ssh aliyun "cd /opt/multisig && docker-compose -f docker-compose.yml -p multisig-fast logs --tail=500 backend"
+
+# 查看带时间戳的实时日志
+ssh aliyun "cd /opt/multisig && docker-compose -f docker-compose.yml -p multisig-fast logs -f -t backend"
+```
+
+#### 3. 查看特定时间段的后端日志
+```bash
+# 查看从某个时间开始的日志
+ssh aliyun "cd /opt/multisig && docker-compose -f docker-compose.yml -p multisig-fast logs --since='2024-12-22T07:00:00' backend"
+
+# 查看最近1小时的日志
+ssh aliyun "cd /opt/multisig && docker-compose -f docker-compose.yml -p multisig-fast logs --since='1h' backend"
+
+# 查看最近30分钟的日志
+ssh aliyun "cd /opt/multisig && docker-compose -f docker-compose.yml -p multisig-fast logs --since='30m' backend"
+```
+
+### 查看前端日志
+
+#### 1. 实时查看前端日志
+```bash
+# 查看前端实时日志
+ssh aliyun "cd /opt/multisig && docker-compose -f docker-compose-frontend-only.yml -p multisig-frontend logs -f frontend"
+```
+
+#### 2. 查看最近的前端日志
+```bash
+# 查看最近100行前端日志
+ssh aliyun "cd /opt/multisig && docker-compose -f docker-compose-frontend-only.yml -p multisig-frontend logs --tail=100 frontend"
+
+# 查看带时间戳的前端日志
+ssh aliyun "cd /opt/multisig && docker-compose -f docker-compose-frontend-only.yml -p multisig-frontend logs -f -t frontend"
+```
+
+### 查看所有服务日志
+
+#### 1. 查看后端相关服务日志
+```bash
+# 查看所有后端服务的实时日志（后端+数据库）
+ssh aliyun "cd /opt/multisig && docker-compose -f docker-compose.yml -p multisig-fast logs -f"
+
+# 只查看后端和数据库日志
+ssh aliyun "cd /opt/multisig && docker-compose -f docker-compose.yml -p multisig-fast logs -f backend postgres"
+```
+
+#### 2. 查看前后端所有日志
+```bash
+# 同时查看前端和后端日志（需要两个终端窗口）
+# 终端1：后端日志
+ssh aliyun "cd /opt/multisig && docker-compose -f docker-compose.yml -p multisig-fast logs -f backend"
+
+# 终端2：前端日志
+ssh aliyun "cd /opt/multisig && docker-compose -f docker-compose-frontend-only.yml -p multisig-frontend logs -f frontend"
+```
+
+### 使用原生 Docker 命令查看日志
+
+#### 1. 查找容器ID
+```bash
+# 查看所有运行中的容器
+ssh aliyun "docker ps"
+
+# 只查看后端容器
+ssh aliyun "docker ps | grep backend"
+
+# 只查看前端容器
+ssh aliyun "docker ps | grep frontend"
+```
+
+#### 2. 使用容器ID查看日志
+```bash
+# 查看指定容器的实时日志（替换CONTAINER_ID）
+ssh aliyun "docker logs -f CONTAINER_ID"
+
+# 查看指定容器的最近日志
+ssh aliyun "docker logs --tail=100 CONTAINER_ID"
+```
+
+### 常用调试命令组合
+
+#### 🔍 问题排查推荐流程
+
+1. **快速检查所有容器状态**
+```bash
+ssh aliyun "docker ps -a"
+```
+
+2. **查看后端最近日志+实时监控**
+```bash
+
+docker-compose -f docker-compose.yml -p multisig-fast logs -f backend"
+
+docker-compose -f docker-compose.yml -p multisig-fast logs --tail=50 backend
+
+ssh aliyun "cd /opt/multisig && docker-compose -f docker-compose.yml -p multisig-fast logs --tail=200 -f backend"
+```
+
+3. **查看前端最近日志+实时监控**
+```bash
+ssh aliyun "cd /opt/multisig && docker-compose -f docker-compose-frontend-only.yml -p multisig-frontend logs --tail=200 -f frontend"
+```
+
+4. **检查数据库连接问题**
+```bash
+ssh aliyun "cd /opt/multisig && docker-compose -f docker-compose.yml -p multisig-fast logs --tail=100 postgres"
+```
+
+#### 📊 性能监控
+
+```bash
+# 查看容器资源使用情况
+ssh aliyun "docker stats"
+
+# 查看特定容器资源使用
+ssh aliyun "docker stats CONTAINER_ID"
+```
+
+#### 🛠️ 容器管理
+
+```bash
+# 进入后端容器内部调试
+ssh aliyun "docker exec -it \$(docker ps -q --filter name=backend) /bin/sh"
+
+# 进入前端容器内部调试
+ssh aliyun "docker exec -it \$(docker ps -q --filter name=frontend) /bin/sh"
+
+# 查看容器详细信息
+ssh aliyun "docker inspect CONTAINER_ID"
+```
+
+### 💡 日志查看技巧
+
+1. **使用 `Ctrl+C` 退出日志查看模式**
+
+2. **日志过滤技巧**
+```bash
+# 过滤包含ERROR的日志
+ssh aliyun "cd /opt/multisig && docker-compose -f docker-compose.yml -p multisig-fast logs backend" | grep ERROR
+
+# 过滤包含特定关键词的日志
+ssh aliyun "cd /opt/multisig && docker-compose -f docker-compose.yml -p multisig-fast logs backend" | grep "API"
+```
+
+3. **保存日志到文件**
+```bash
+# 将日志保存到本地文件
+ssh aliyun "cd /opt/multisig && docker-compose -f docker-compose.yml -p multisig-fast logs --tail=1000 backend" > backend-logs.txt
+```
+
 ## 📞 技术支持
 
-遇到问题请：
-1. 检查本文档的常见问题部分
-2. 查看容器日志排查错误
-3. 联系技术团队获得支持
+## 🔧 常见问题解决
+
+### 超级管理员登录问题
+
+如果遇到超级管理员无法登录的问题，可能是初始化脚本中的密码hash不正确。
+
+**解决方案1：重置密码（推荐）**
+```bash
+curl -X POST http://your-domain.com/api/admin/reset-password \
+  -H "Content-Type: application/json" \
+  -d '{"admin_email": "admin@company.com"}'
+```
+
+**解决方案2：系统重新初始化**
+```bash
+curl -X POST http://your-domain.com/api/admin/init
+```
+
+**默认超级管理员账户**：
+- 邮箱：`admin@company.com`
+- 密码：`SuperAdmin@123`（如果使用修复后的初始化脚本）
+
+### 构建参数选择指南
+
+**我应该使用哪个构建参数？**
+
+| 场景 | 推荐命令 | 说明 |
+|------|----------|------|
+| 首次部署 | `./build.sh` | 构建所有组件 |
+| 只改了后端代码 | `./build.sh --backend-only` | 包含数据库镜像 |
+| 使用云数据库 | `./build.sh --backend-only --no-database` | 不包含PostgreSQL |
+| 只改了前端代码 | `./build.sh --frontend-only` | 仅前端镜像，不含数据库 |
+| 开发调试 | `./build.sh --no-cache --backend-only` | 强制重新构建 |

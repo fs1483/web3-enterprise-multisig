@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { buildApiUrl, API_ENDPOINTS, getAuthHeaders } from '../config/api';
 import { useAuthStore } from '../stores/authStore';
 import type { UserPermissionMappings } from '../hooks/usePermissions';
 
@@ -70,11 +71,11 @@ export const PermissionProvider: React.FC<PermissionProviderProps> = ({ children
 
       // 如果JWT中没有权限信息，从API获取
       const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/permission-mappings/user`,
+        `${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/permission-mappings/user`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
+            ...getAuthHeaders()
           }
         }
       );

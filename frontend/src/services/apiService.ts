@@ -1,8 +1,9 @@
 import axios from 'axios';
 import type { AxiosInstance, AxiosResponse } from 'axios';
+import { buildApiUrl, getAuthHeaders } from '../config/api';
 
-// API Base Configuration - Use relative path for Vite proxy
-const API_BASE_URL = '';
+// API Base Configuration - Use environment variable or fallback
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || buildApiUrl('');
 
 class ApiService {
   private client: AxiosInstance;
@@ -12,7 +13,7 @@ class ApiService {
       baseURL: API_BASE_URL,
       timeout: 10000,
       headers: {
-        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
       },
     });
 

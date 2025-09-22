@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { buildApiUrl, API_ENDPOINTS, getAuthHeaders } from '../../config/api';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '../../components/layout/Layout';
 import { useAuthStore } from '../../stores/authStore';
@@ -103,10 +104,10 @@ export const CreateSafePage: React.FC = () => {
         setGovernancePolicies(policies);
         
         // 从权限模板API加载Safe级角色模板
-        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/role-templates?category=safe`, {
+        const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/role-templates?category=safe`, {
           headers: {
             'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
+            ...getAuthHeaders()
           }
         });
         
@@ -255,12 +256,12 @@ export const CreateSafePage: React.FC = () => {
       
       // 调用后端API
       const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/safes`,
+        `${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/safes`,
         {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
+            ...getAuthHeaders()
           },
           body: JSON.stringify({
             tx_hash: txHash,

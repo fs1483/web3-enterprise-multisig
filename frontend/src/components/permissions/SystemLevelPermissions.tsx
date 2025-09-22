@@ -1,4 +1,5 @@
 // =====================================================
+import { buildApiUrl, API_ENDPOINTS, getAuthHeaders } from '../../config/api';
 // 系统级权限管理模块
 // 版本: v1.0
 // 功能: 系统级权限管理，包含用户管理、系统配置、系统初始化
@@ -87,10 +88,10 @@ const SystemLevelPermissions: React.FC<SystemLevelPermissionsProps> = ({
       setRefreshing(true);
       onLoading(true);
       
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/users`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/users`, {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          ...getAuthHeaders()
         }
       });
       
@@ -115,7 +116,7 @@ const SystemLevelPermissions: React.FC<SystemLevelPermissionsProps> = ({
     try {
       onLoading(true);
       
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/admin/health`);
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/admin/health`);
       
       if (response.ok) {
         const data = await response.json();
@@ -137,10 +138,10 @@ const SystemLevelPermissions: React.FC<SystemLevelPermissionsProps> = ({
     try {
       onLoading(true);
       
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/admin/init`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/admin/init`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          ...getAuthHeaders()
         }
       });
 
@@ -170,10 +171,10 @@ const SystemLevelPermissions: React.FC<SystemLevelPermissionsProps> = ({
     try {
       onLoading(true);
       
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/admin/reset-password`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/admin/reset-password`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          ...getAuthHeaders()
         },
         body: JSON.stringify({
           admin_email: adminEmail
@@ -217,10 +218,10 @@ const SystemLevelPermissions: React.FC<SystemLevelPermissionsProps> = ({
   // 获取用户已有权限
   const fetchUserPermissions = async (userId: string) => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/users/${userId}/permissions`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/users/${userId}/permissions`, {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          ...getAuthHeaders()
         }
       });
 
@@ -252,10 +253,10 @@ const SystemLevelPermissions: React.FC<SystemLevelPermissionsProps> = ({
     try {
       onLoading(true);
       
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/users/${selectedUser.id}/permissions`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/users/${selectedUser.id}/permissions`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          ...getAuthHeaders(),
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
@@ -293,10 +294,10 @@ const SystemLevelPermissions: React.FC<SystemLevelPermissionsProps> = ({
       if (search) params.append('search', search);
       if (category) params.append('category', category);
       
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/permissions/definitions?${params}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/permissions/definitions?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          ...getAuthHeaders()
         }
       });
       

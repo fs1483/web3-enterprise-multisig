@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { buildApiUrl, API_ENDPOINTS, getAuthHeaders } from '../config/api';
 import { ethToWei, validateEthAmount } from '../utils/ethUtils';
 
 export interface Proposal {
@@ -110,7 +111,7 @@ export const useProposalStore = create<ProposalState & ProposalActions>((set) =>
         throw new Error('No authentication token');
       }
 
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/proposals?page=${page}&limit=${limit}`, {
+      const response = await fetch(buildApiUrl(`/api/v1/proposals?page=${page}&limit=${limit}`), {
         headers: {
           'Authorization': `Bearer ${token}`,
         },
@@ -172,7 +173,7 @@ export const useProposalStore = create<ProposalState & ProposalActions>((set) =>
       const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/api/v1/proposals/${id}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
+          ...getAuthHeaders(),
         },
       });
 
@@ -247,10 +248,10 @@ export const useProposalStore = create<ProposalState & ProposalActions>((set) =>
         required_signatures: proposalData.requiredSignatures,
       };
 
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/proposals`, {
+      const response = await fetch(buildApiUrl('/api/v1/proposals'), {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          ...getAuthHeaders(),
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify(apiData),
@@ -334,10 +335,10 @@ export const useProposalStore = create<ProposalState & ProposalActions>((set) =>
         requestBody.safe_tx_hash = safeTxHash;
       }
 
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/proposals/${id}/sign`, {
+      const response = await fetch(buildApiUrl(`/api/v1/proposals/${id}/sign`), {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          ...getAuthHeaders(),
           'Authorization': `Bearer ${token}`,
         },
         body: JSON.stringify(requestBody),
@@ -378,7 +379,7 @@ export const useProposalStore = create<ProposalState & ProposalActions>((set) =>
         throw new Error('No authentication token');
       }
 
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/proposals/${id}/execute`, {
+      const response = await fetch(buildApiUrl(`/api/v1/proposals/${id}/execute`), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -420,7 +421,7 @@ export const useProposalStore = create<ProposalState & ProposalActions>((set) =>
         throw new Error('No authentication token');
       }
 
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/proposals/${id}/reject`, {
+      const response = await fetch(buildApiUrl(`/api/v1/proposals/${id}/reject`), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,

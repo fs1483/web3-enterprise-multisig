@@ -1,4 +1,5 @@
 // =====================================================
+import { buildApiUrl, API_ENDPOINTS, getAuthHeaders } from '../config/api';
 // API 客户端
 // 版本: v2.0
 // 功能: 提供统一的API调用接口
@@ -15,7 +16,7 @@ interface ApiResponse<T = any> {
 class ApiClient {
   private baseURL: string;
 
-  constructor(baseURL: string = 'http://localhost:8080/api/v1') {
+  constructor(baseURL: string = `${buildApiUrl('')}/api/v1`) {
     this.baseURL = baseURL;
   }
 
@@ -26,7 +27,7 @@ class ApiClient {
     const url = `${this.baseURL}${endpoint}`;
     
     const defaultHeaders: Record<string, string> = {
-      'Content-Type': 'application/json',
+      ...getAuthHeaders(),
     };
 
     // 获取token的逻辑
@@ -138,6 +139,9 @@ class ApiClient {
   async post<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, {
       method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
       body: data ? JSON.stringify(data) : undefined,
     });
   }
@@ -145,6 +149,9 @@ class ApiClient {
   async put<T>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, {
       method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
       body: data ? JSON.stringify(data) : undefined,
     });
   }

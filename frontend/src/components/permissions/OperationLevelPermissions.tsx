@@ -1,4 +1,5 @@
 // =====================================================
+import { buildApiUrl, API_ENDPOINTS, getAuthHeaders } from '../../config/api';
 // 操作级权限管理模块
 // 版本: v1.0
 // 功能: 操作级权限管理，包含权限定义、审计日志、权限监控
@@ -91,10 +92,10 @@ const OperationLevelPermissions: React.FC<OperationLevelPermissionsProps> = ({
         date_range: dateRange
       });
       
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/audit-logs?${params}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/audit-logs?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          ...getAuthHeaders()
         }
       });
       
@@ -119,10 +120,10 @@ const OperationLevelPermissions: React.FC<OperationLevelPermissionsProps> = ({
     try {
       onLoading(true);
       
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/permissions/stats`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/permissions/stats`, {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          ...getAuthHeaders()
         }
       });
       
@@ -151,7 +152,7 @@ const OperationLevelPermissions: React.FC<OperationLevelPermissionsProps> = ({
         date_range: dateRange
       });
       
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/audit-logs/export?${params}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/audit-logs/export?${params}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

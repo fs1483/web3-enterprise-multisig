@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { buildApiUrl, API_ENDPOINTS, getAuthHeaders } from '../config/api';
 import { userService } from '../services/userService';
 
 interface ApiDebugPanelProps {
@@ -60,10 +61,10 @@ export const ApiDebugPanel: React.FC<ApiDebugPanelProps> = ({ safeId }) => {
   const loginWithTestCredentials = async () => {
     // 直接测试不需要认证的端点
     try {
-      const response = await fetch('http://localhost:8080/api/v1/users', {
+      const response = await fetch(buildApiUrl('')/api/v1/users', {
         method: 'GET',
         headers: {
-          'Content-Type': 'application/json',
+          ...getAuthHeaders(),
         }
       });
       

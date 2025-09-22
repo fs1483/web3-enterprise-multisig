@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { buildApiUrl, API_ENDPOINTS, getAuthHeaders } from '../config/api';
 
 export interface Transaction {
   id: string;
@@ -70,7 +71,7 @@ export const useTransactionStore = create<TransactionState & TransactionActions>
         ...filters
       });
 
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/transactions?${queryParams}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/transactions?${queryParams}`, {
         headers: {
           'Authorization': `Bearer ${authData.token}`,
         },

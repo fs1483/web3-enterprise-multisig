@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { buildApiUrl, API_ENDPOINTS, getAuthHeaders } from '../../config/api';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
   ArrowLeft, 
@@ -45,11 +46,11 @@ const SafeDetailPage: React.FC = () => {
     try {
       setLoading(true);
       const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/safes/address/${safeAddress}`,
+        `${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/safes/address/${safeAddress}`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
+            ...getAuthHeaders()
           }
         }
       );

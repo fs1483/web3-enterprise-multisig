@@ -11,6 +11,15 @@
 -- 这些权限需要根据业务逻辑补全映射字段
 -- =====================================================
 
+
+-- 删除旧的约束
+ALTER TABLE permission_definitions DROP CONSTRAINT permission_definitions_category_check;
+
+-- 添加新的约束（与本地一致）
+ALTER TABLE permission_definitions ADD CONSTRAINT permission_definitions_category_check 
+CHECK (category::text = ANY (ARRAY['system'::character varying, 'safe'::character varying, 'proposal'::character varying, 'member'::character varying, 'policy'::character varying, 'transaction'::character varying, 'PATCH'::character varying]::text[]));
+
+
 -- Safe基础权限（补全API映射字段）
 INSERT INTO permission_definitions (code, name, description, category, scope, is_system, mapping_type, mapping_url, mapping_method, display_order) VALUES
 -- Safe信息权限 (API类型)
@@ -27,9 +36,9 @@ INSERT INTO permission_definitions (code, name, description, category, scope, is
 ('safe.proposal.execute', '执行提案', '执行已获得足够签名的提案', 'proposal', 'operation', true, 'api', '/api/v1/proposals/:id/execute', 'POST', 205),
 
 -- 按提案类型细分的创建权限 (功能类型)
-('safe.proposal.create.transfer', '创建转账提案', '创建ETH或代币转账提案', 'proposal', 'operation', true, 'feature', '/proposals/create/transfer', 210),
-('safe.proposal.create.contract', '创建合约调用提案', '创建智能合约交互提案', 'proposal', 'operation', true, 'feature', '/proposals/create/contract', 211),
-('safe.proposal.create.governance', '创建治理提案', '创建Safe治理相关提案（如添加/移除成员、修改阈值）', 'proposal', 'operation', true, 'feature', '/proposals/create/governance', 212),
+('safe.proposal.create.transfer', '创建转账提案', '创建ETH或代币转账提案', 'proposal', 'operation', true, 'feature', '/proposals/create/transfer', NULL, 210),
+('safe.proposal.create.contract', '创建合约调用提案', '创建智能合约交互提案', 'proposal', 'operation', true, 'feature', '/proposals/create/contract', NULL, 211),
+('safe.proposal.create.governance', '创建治理提案', '创建Safe治理相关提案（如添加/移除成员、修改阈值）', 'proposal', 'operation', true, 'feature', '/proposals/create/governance', NULL, 212),
 
 -- 成员管理权限 (API类型)
 ('safe.member.view', '查看成员', '查看Safe成员列表和角色信息', 'member', 'safe', true, 'api', '/api/v1/safes/:safeId/members', 'GET', 300),

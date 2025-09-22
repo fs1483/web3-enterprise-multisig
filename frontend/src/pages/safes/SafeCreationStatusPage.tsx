@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { buildApiUrl, API_ENDPOINTS, getAuthHeaders } from '../../config/api';
 import { useParams, useNavigate } from 'react-router-dom';
 import { CheckCircle, Clock, AlertCircle, ExternalLink, ArrowLeft, RefreshCw } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
@@ -47,11 +48,11 @@ const SafeCreationStatusPage: React.FC = () => {
 
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/safe-transactions/${transactionId}`,
+        `${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/safe-transactions/${transactionId}`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
+            ...getAuthHeaders()
           }
         }
       );
@@ -78,7 +79,7 @@ const SafeCreationStatusPage: React.FC = () => {
     if (!token) return;
 
     // 构建WebSocket URL - 修复协议和端口问题
-    const baseUrl = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080';
+    const baseUrl = import.meta.env.VITE_API_BASE_URL || buildApiUrl('');
     const wsUrl = baseUrl.replace('http://', 'ws://').replace('https://', 'wss://');
     const fullWsUrl = `${wsUrl}/ws?token=${encodeURIComponent(token)}`;
     

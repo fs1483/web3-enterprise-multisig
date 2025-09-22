@@ -1,4 +1,5 @@
 // =====================================================
+import { buildApiUrl, API_ENDPOINTS, getAuthHeaders } from '../config/api';
 // 权限模板API测试组件
 // 用于验证权限模板API是否正常工作
 // =====================================================
@@ -25,10 +26,10 @@ const PermissionTemplateTest: React.FC = () => {
       setLoading(true);
       setError('');
       
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/role-templates?category=safe`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/role-templates?category=safe`, {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          ...getAuthHeaders()
         }
       });
       

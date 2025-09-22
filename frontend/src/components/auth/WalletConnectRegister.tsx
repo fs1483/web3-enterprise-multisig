@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { buildApiUrl, API_ENDPOINTS, getAuthHeaders } from '../../config/api';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -54,10 +55,10 @@ export const WalletConnectRegister: React.FC = () => {
 
     setIsRegistering(true);
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/auth/register`, {
+      const response = await fetch(buildApiUrl('/api/v1/auth/register'), {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          ...getAuthHeaders()
         },
         body: JSON.stringify({
           email: data.email,

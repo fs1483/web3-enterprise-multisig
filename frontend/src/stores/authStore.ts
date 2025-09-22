@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { buildApiUrl, API_ENDPOINTS, getAuthHeaders } from '../config/api';
 
 export interface User {
   id: string;
@@ -46,11 +47,9 @@ export const useAuthStore = create<AuthState & AuthActions>()(
         set({ isLoading: true, error: null });
         
         try {
-          const response = await fetch('http://localhost:8080/api/v1/auth/login', {
+          const response = await fetch(buildApiUrl(API_ENDPOINTS.AUTH.LOGIN), {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
+            headers: getAuthHeaders(),
             body: JSON.stringify({ email, password }),
           });
 
@@ -92,11 +91,9 @@ export const useAuthStore = create<AuthState & AuthActions>()(
         set({ isLoading: true, error: null });
         
         try {
-          const response = await fetch('http://localhost:8080/api/v1/auth/register', {
+          const response = await fetch(buildApiUrl(API_ENDPOINTS.AUTH.REGISTER), {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
+            headers: getAuthHeaders(),
             body: JSON.stringify(userData),
           });
 
@@ -137,11 +134,9 @@ export const useAuthStore = create<AuthState & AuthActions>()(
         set({ isLoading: true, error: null });
         
         try {
-          const response = await fetch('http://localhost:8080/api/v1/auth/wallet-register', {
+          const response = await fetch(buildApiUrl(API_ENDPOINTS.AUTH.WALLET_REGISTER), {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
+            headers: getAuthHeaders(),
             body: JSON.stringify({
               name: userData.name,
               email: userData.email,
@@ -189,11 +184,9 @@ export const useAuthStore = create<AuthState & AuthActions>()(
         set({ isLoading: true, error: null });
         
         try {
-          const response = await fetch('http://localhost:8080/api/v1/auth/wallet-login', {
+          const response = await fetch(buildApiUrl(API_ENDPOINTS.AUTH.WALLET_LOGIN), {
             method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
+            headers: getAuthHeaders(),
             body: JSON.stringify({
               wallet_address: walletAddress,
               signature: signature,
@@ -263,12 +256,9 @@ export const useAuthStore = create<AuthState & AuthActions>()(
         set({ isLoading: true, error: null });
         
         try {
-          const response = await fetch('http://localhost:8080/api/v1/users/profile', {
+          const response = await fetch(buildApiUrl(API_ENDPOINTS.AUTH.PROFILE), {
             method: 'PUT',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`,
-            },
+            headers: getAuthHeaders(token),
             body: JSON.stringify(userData),
           });
 

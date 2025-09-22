@@ -1,4 +1,5 @@
 // 测试认证功能的工具
+import { buildApiUrl, API_ENDPOINTS, getAuthHeaders } from '../config/api';
 export const testAuthFlow = async () => {
   console.log('=== 开始测试认证流程 ===');
   
@@ -9,10 +10,10 @@ export const testAuthFlow = async () => {
   
   // 2. 测试注册/登录
   try {
-    const registerResponse = await fetch('http://localhost:8080/api/v1/auth/register', {
+    const registerResponse = await fetch('buildApiUrl(API_ENDPOINTS.AUTH.REGISTER)', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
       },
       body: JSON.stringify({
         name: 'Test User',
@@ -51,10 +52,10 @@ export const testAuthFlow = async () => {
       return data.token;
     } else {
       // 如果注册失败，尝试登录
-      const loginResponse = await fetch('http://localhost:8080/api/v1/auth/login', {
+      const loginResponse = await fetch('buildApiUrl(API_ENDPOINTS.AUTH.LOGIN)', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          ...getAuthHeaders(),
         },
         body: JSON.stringify({
           email: 'admin@example.com',
@@ -103,10 +104,10 @@ export const testApiCall = async (token: string) => {
   console.log('=== 测试API调用 ===');
   
   try {
-    const response = await fetch('http://localhost:8080/api/v1/permissions/definitions', {
+    const response = await fetch('buildApiUrl(API_ENDPOINTS.PERMISSIONS.DEFINITIONS)', {
       method: 'GET',
       headers: {
-        'Content-Type': 'application/json',
+        ...getAuthHeaders(),
         'Authorization': `Bearer ${token}`
       }
     });

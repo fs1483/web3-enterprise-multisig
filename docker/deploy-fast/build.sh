@@ -48,8 +48,9 @@ show_help() {
     echo "  -p, --push          构建后推送镜像到仓库 (禁用默认SCP传输)"
     echo "  -s, --scp           强制启用SCP传输 (默认已启用)"
     echo "  --no-cache          构建时不使用缓存"
-    echo "  --backend-only      仅构建后端镜像"
-    echo "  --frontend-only     仅构建前端镜像"
+    echo "  --backend-only      仅构建后端镜像（包含PostgreSQL）"
+    echo "  --frontend-only     仅构建前端镜像（不包含PostgreSQL）"
+    echo "  --no-database       不包含PostgreSQL镜像（适用于使用外部数据库）"
     echo "  -h, --help          显示此帮助信息"
     echo ""
     echo "SCP 传输说明:"
@@ -61,8 +62,9 @@ show_help() {
     echo "  $0                                    # 默认构建并通过SCP传输"
     echo "  $0 -e env.scp.example -t v1.0.0      # 使用指定配置构建 v1.0.0 版本"
     echo "  $0 -p                                 # 构建并推送到镜像仓库"
-    echo "  $0 --backend-only                    # 仅构建并传输后端镜像"
-    echo "  $0 --frontend-only                   # 仅构建并传输前端镜像"
+    echo "  $0 --backend-only                    # 仅构建并传输后端镜像（含PostgreSQL）"
+    echo "  $0 --frontend-only                   # 仅构建并传输前端镜像（不含数据库）"
+    echo "  $0 --backend-only --no-database      # 仅构建后端镜像，不包含PostgreSQL"
 }
 
 # 默认参数
@@ -73,6 +75,7 @@ SCP_TRANSFER=true  # 默认启用SCP传输
 NO_CACHE=false
 BUILD_BACKEND=true
 BUILD_FRONTEND=true
+INCLUDE_DATABASE=true  # 默认包含数据库镜像
 
 # 解析命令行参数
 while [[ $# -gt 0 ]]; do
@@ -105,6 +108,11 @@ while [[ $# -gt 0 ]]; do
             ;;
         --frontend-only)
             BUILD_BACKEND=false
+            INCLUDE_DATABASE=false  # 前端不需要数据库
+            shift
+            ;;
+        --no-database)
+            INCLUDE_DATABASE=false
             shift
             ;;
         -h|--help)
@@ -316,63 +324,67 @@ if [[ "$SCP_TRANSFER" == "true" ]]; then
     fi
     
     # 下载并传输 PostgreSQL 镜像（用于本地数据库）
-    log_info "下载 PostgreSQL 镜像..."
-    POSTGRES_IMAGE="postgres:15-alpine"
-    POSTGRES_TAR="$LOCAL_TEMP_DIR/postgres-15-alpine.tar"
-    
-    # 检查本地是否已有 PostgreSQL 镜像
-    if ! docker image inspect "$POSTGRES_IMAGE" >/dev/null 2>&1; then
-        log_info "本地未找到 PostgreSQL 镜像，开始下载..."
-        docker pull "$POSTGRES_IMAGE" || {
-            log_warning "下载 PostgreSQL 镜像失败，尝试使用国内镜像源..."
-            docker pull "registry.cn-hangzhou.aliyuncs.com/library/postgres:15-alpine" || {
-                log_error "下载 PostgreSQL 镜像失败"
-                exit 1
+    if [[ "$INCLUDE_DATABASE" == "true" ]]; then
+        log_info "下载 PostgreSQL 镜像..."
+        POSTGRES_IMAGE="postgres:15-alpine"
+        POSTGRES_TAR="$LOCAL_TEMP_DIR/postgres-15-alpine.tar"
+        
+        # 检查本地是否已有 PostgreSQL 镜像
+        if ! docker image inspect "$POSTGRES_IMAGE" >/dev/null 2>&1; then
+            log_info "本地未找到 PostgreSQL 镜像，开始下载..."
+            docker pull "$POSTGRES_IMAGE" || {
+                log_warning "下载 PostgreSQL 镜像失败，尝试使用国内镜像源..."
+                docker pull "registry.cn-hangzhou.aliyuncs.com/library/postgres:15-alpine" || {
+                    log_error "下载 PostgreSQL 镜像失败"
+                    exit 1
+                }
+                # 重新标记镜像
+                docker tag "registry.cn-hangzhou.aliyuncs.com/library/postgres:15-alpine" "$POSTGRES_IMAGE"
             }
-            # 重新标记镜像
-            docker tag "registry.cn-hangzhou.aliyuncs.com/library/postgres:15-alpine" "$POSTGRES_IMAGE"
-        }
-    else
-        log_info "本地已存在 PostgreSQL 镜像"
-    fi
-    
-    # 导出 PostgreSQL 镜像
-    log_info "导出 PostgreSQL 镜像: $POSTGRES_IMAGE"
-    docker save "$POSTGRES_IMAGE" -o "$POSTGRES_TAR"
-    if [[ $? -eq 0 ]]; then
-        log_success "PostgreSQL 镜像导出成功: $POSTGRES_TAR"
+        else
+            log_info "本地已存在 PostgreSQL 镜像"
+        fi
         
-        # 压缩镜像文件
-        log_info "压缩 PostgreSQL 镜像文件..."
-        gzip -${COMPRESSION_LEVEL:-6} "$POSTGRES_TAR"
-        POSTGRES_TAR_GZ="${POSTGRES_TAR}.gz"
-        
-        if [[ -f "$POSTGRES_TAR_GZ" ]]; then
-            log_success "PostgreSQL 镜像压缩完成: $POSTGRES_TAR_GZ"
+        # 导出 PostgreSQL 镜像
+        log_info "导出 PostgreSQL 镜像: $POSTGRES_IMAGE"
+        docker save "$POSTGRES_IMAGE" -o "$POSTGRES_TAR"
+        if [[ $? -eq 0 ]]; then
+            log_success "PostgreSQL 镜像导出成功: $POSTGRES_TAR"
             
-            # 通过SCP传输到远程服务器
-            log_info "传输 PostgreSQL 镜像到 $SSH_TARGET:$REMOTE_PATH/images"
-            scp $SSH_OPTIONS "$POSTGRES_TAR_GZ" "$SSH_TARGET:$REMOTE_PATH/images/"
+            # 压缩镜像文件
+            log_info "压缩 PostgreSQL 镜像文件..."
+            gzip -${COMPRESSION_LEVEL:-6} "$POSTGRES_TAR"
+            POSTGRES_TAR_GZ="${POSTGRES_TAR}.gz"
             
-            if [[ $? -eq 0 ]]; then
-                log_success "PostgreSQL 镜像传输成功"
+            if [[ -f "$POSTGRES_TAR_GZ" ]]; then
+                log_success "PostgreSQL 镜像压缩完成: $POSTGRES_TAR_GZ"
                 
-                # 清理本地文件（如果配置允许）
-                if [[ "$KEEP_LOCAL_IMAGES" != "true" ]]; then
-                    rm -f "$POSTGRES_TAR_GZ"
-                    log_info "已清理本地 PostgreSQL 镜像文件"
+                # 通过SCP传输到远程服务器
+                log_info "传输 PostgreSQL 镜像到 $SSH_TARGET:$REMOTE_PATH/images"
+                scp $SSH_OPTIONS "$POSTGRES_TAR_GZ" "$SSH_TARGET:$REMOTE_PATH/images/"
+                
+                if [[ $? -eq 0 ]]; then
+                    log_success "PostgreSQL 镜像传输成功"
+                    
+                    # 清理本地文件（如果配置允许）
+                    if [[ "$KEEP_LOCAL_IMAGES" != "true" ]]; then
+                        rm -f "$POSTGRES_TAR_GZ"
+                        log_info "已清理本地 PostgreSQL 镜像文件"
+                    fi
+                else
+                    log_error "PostgreSQL 镜像传输失败"
+                    exit 1
                 fi
             else
-                log_error "PostgreSQL 镜像传输失败"
+                log_error "PostgreSQL 镜像压缩失败"
                 exit 1
             fi
         else
-            log_error "PostgreSQL 镜像压缩失败"
+            log_error "PostgreSQL 镜像导出失败"
             exit 1
         fi
     else
-        log_error "PostgreSQL 镜像导出失败"
-        exit 1
+        log_info "跳过 PostgreSQL 镜像处理（使用 --no-database 参数）"
     fi
     
     # 导出并传输后端镜像

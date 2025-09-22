@@ -1,4 +1,5 @@
 // =====================================================
+import { buildApiUrl, API_ENDPOINTS, getAuthHeaders } from '../config/api';
 // Safe自定义角色管理组件
 // 版本: v1.0
 // 功能: 创建和管理Safe级自定义角色
@@ -198,8 +199,8 @@ const RoleModal: React.FC<{
       setError(null);
 
       const url = isEdit 
-        ? `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/safes/${safeId}/custom-roles/${role?.role_id}`
-        : `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/safes/${safeId}/custom-roles`;
+        ? `${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/safes/${safeId}/custom-roles/${role?.role_id}`
+        : `${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/safes/${safeId}/custom-roles`;
 
       const method = isEdit ? 'PUT' : 'POST';
       const body = {
@@ -214,7 +215,7 @@ const RoleModal: React.FC<{
         method,
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          ...getAuthHeaders()
         },
         body: JSON.stringify(body)
       });
@@ -374,10 +375,10 @@ export const SafeCustomRoles: React.FC<SafeCustomRolesProps> = ({
       setLoading(true);
       setError(null);
       
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/safes/${safeId}/custom-roles`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/safes/${safeId}/custom-roles`, {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          ...getAuthHeaders()
         }
       });
       
@@ -400,11 +401,11 @@ export const SafeCustomRoles: React.FC<SafeCustomRolesProps> = ({
     if (!confirm(`确定要删除角色 "${roleName}" 吗？此操作不可撤销。`)) return;
 
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/safes/${safeId}/custom-roles/${roleId}`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/safes/${safeId}/custom-roles/${roleId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          ...getAuthHeaders()
         }
       });
 

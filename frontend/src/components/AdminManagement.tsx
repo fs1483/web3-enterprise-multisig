@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { buildApiUrl, API_ENDPOINTS, getAuthHeaders } from '../config/api';
 import { useAuthStore } from '../stores/authStore';
 
 interface User {
@@ -42,10 +43,10 @@ const AdminManagement: React.FC = () => {
   const fetchUsers = async () => {
     try {
       console.log('正在获取用户列表...');
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/users`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/users`, {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          ...getAuthHeaders()
         }
       });
       
@@ -87,7 +88,7 @@ const AdminManagement: React.FC = () => {
       const response = await fetch('/api/admin/init', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          ...getAuthHeaders()
         }
       });
 
@@ -116,7 +117,7 @@ const AdminManagement: React.FC = () => {
       const response = await fetch('/api/admin/set-password', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          ...getAuthHeaders()
         },
         body: JSON.stringify({
           admin_email: adminEmail,
@@ -143,7 +144,7 @@ const AdminManagement: React.FC = () => {
       const response = await fetch('/api/admin/reset-password', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          ...getAuthHeaders()
         },
         body: JSON.stringify({
           admin_email: adminEmail
@@ -165,10 +166,10 @@ const AdminManagement: React.FC = () => {
 
   const handleAssignPermissions = async (userId: string, permissions: string[]) => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/users/${userId}/permissions`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/users/${userId}/permissions`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          ...getAuthHeaders(),
           'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({
@@ -227,10 +228,10 @@ const AdminManagement: React.FC = () => {
             return;
           }
 
-          const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/users/${user.id}/permissions`, {
+          const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/users/${user.id}/permissions`, {
             headers: {
               'Authorization': `Bearer ${authToken}`,
-              'Content-Type': 'application/json',
+              ...getAuthHeaders(),
             },
           });
 

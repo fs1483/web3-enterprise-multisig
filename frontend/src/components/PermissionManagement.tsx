@@ -127,7 +127,7 @@ const PermissionManagement: React.FC = () => {
       const response = await fetch('/api/v1/users', {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
+          ...getAuthHeaders(),
         },
       });
 

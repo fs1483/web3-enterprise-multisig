@@ -10,24 +10,26 @@ CREATE TABLE IF NOT EXISTS users (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     
     -- 用户基本信息
-    name VARCHAR(255) NOT NULL,
     email VARCHAR(255) UNIQUE NOT NULL,
-    password_hash VARCHAR(255), -- 可为空，支持钱包登录
+    password_hash VARCHAR(255) NOT NULL, -- 密码哈希，钱包登录用户也需要设置
+    username VARCHAR(100) UNIQUE NOT NULL, -- 用户名，必须唯一
+    full_name VARCHAR(255), -- 全名，可为空
+    avatar_url TEXT, -- 头像URL，可为空
     
-    -- Web3钱包信息
-    wallet_address VARCHAR(42) UNIQUE, -- 以太坊地址
+    -- 用户角色和权限
+    role VARCHAR(50) DEFAULT 'user', -- user, admin, super_admin, viewer
     
     -- 用户状态
     is_active BOOLEAN DEFAULT true,
     email_verified BOOLEAN DEFAULT false,
     
-    -- 用户角色和权限
-    role VARCHAR(50) DEFAULT 'user', -- user, admin, super_admin
-    
     -- 时间戳
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW(),
-    last_login_at TIMESTAMP
+    last_login_at TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+    
+    -- Web3钱包信息
+    wallet_address VARCHAR(42) UNIQUE -- 以太坊地址，可为空
 );
 
 -- 创建Safe多签钱包表
@@ -104,8 +106,9 @@ CREATE TABLE IF NOT EXISTS user_sessions (
 
 -- 创建索引优化查询性能
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
 CREATE INDEX IF NOT EXISTS idx_users_wallet_address ON users(wallet_address);
-CREATE INDEX IF NOT EXISTS idx_users_active ON users(is_active);
+CREATE INDEX IF NOT EXISTS idx_users_is_active ON users(is_active);
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
 
 CREATE INDEX IF NOT EXISTS idx_safes_address ON safes(address);
@@ -142,8 +145,13 @@ CREATE TRIGGER trigger_update_safes_updated_at
 
 -- 添加约束确保数据完整性
 ALTER TABLE users 
-ADD CONSTRAINT check_user_role 
-CHECK (role IN ('user', 'admin', 'super_admin'));
+ADD CONSTRAINT users_role_check 
+CHECK (role IN ('super_admin', 'admin', 'user', 'viewer'));
+
+-- 添加钱包地址格式检查约束
+ALTER TABLE users 
+ADD CONSTRAINT check_wallet_address_format 
+CHECK (wallet_address IS NULL OR wallet_address ~ '^0x[a-fA-F0-9]{40}$');
 
 ALTER TABLE safes 
 ADD CONSTRAINT check_safe_status 
@@ -164,8 +172,13 @@ COMMENT ON TABLE safe_owners IS 'Safe所有者关联表，管理Safe与用户的
 COMMENT ON TABLE user_sessions IS '用户会话表，管理JWT token和登录状态';
 
 -- 添加列注释
-COMMENT ON COLUMN users.wallet_address IS '用户的以太坊钱包地址，支持Web3登录';
-COMMENT ON COLUMN users.password_hash IS '密码哈希，钱包登录用户可为空';
+COMMENT ON COLUMN users.email IS '用户邮箱地址，必须唯一';
+COMMENT ON COLUMN users.username IS '用户名，必须唯一，用于登录和显示';
+COMMENT ON COLUMN users.password_hash IS '密码哈希，所有用户都需要设置密码';
+COMMENT ON COLUMN users.full_name IS '用户全名，用于显示';
+COMMENT ON COLUMN users.avatar_url IS '用户头像URL';
+COMMENT ON COLUMN users.wallet_address IS '用户的以太坊钱包地址，支持Web3登录，必须符合以太坊地址格式';
+COMMENT ON COLUMN users.role IS '用户角色：super_admin, admin, user, viewer';
 COMMENT ON COLUMN safes.owners IS 'JSONB格式存储的所有者地址数组';
 COMMENT ON COLUMN safes.threshold IS '多签阈值，需要的最少签名数量';
 COMMENT ON COLUMN safe_owners.owner_address IS '所有者的钱包地址，与users.wallet_address关联';

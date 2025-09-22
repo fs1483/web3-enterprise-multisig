@@ -1,4 +1,5 @@
 // =====================================================
+import { buildApiUrl, API_ENDPOINTS, getAuthHeaders } from '../../config/api';
 // 批量应用权限模板到Safe的模态框组件
 // 版本: v1.0
 // 功能: 支持选择多个Safe并应用权限模板
@@ -75,10 +76,10 @@ export const ApplyTemplateToSafesModal: React.FC<ApplyTemplateToSafesModalProps>
       setLoading(true);
       setError(null);
       
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/safes`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/safes`, {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          ...getAuthHeaders()
         }
       });
       
@@ -107,11 +108,11 @@ export const ApplyTemplateToSafesModal: React.FC<ApplyTemplateToSafesModalProps>
       setSubmitting(true);
       setError(null);
       
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/safe-role-templates/apply`, {
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/safe-role-templates/apply`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          ...getAuthHeaders()
         },
         body: JSON.stringify({
           template_id: template.id,

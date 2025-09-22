@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { buildApiUrl, API_ENDPOINTS, getAuthHeaders } from '../../config/api';
 import { Plus, Search, Edit, Trash2, ChevronLeft, ChevronRight, ToggleLeft, ToggleRight } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 
@@ -97,13 +98,13 @@ export const PermissionDefinitions: React.FC = () => {
       if (categoryFilter) params.append('category', categoryFilter);
       if (scopeFilter) params.append('scope', scopeFilter);
 
-      const apiUrl = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/permissions/definitions?${params}`;
+      const apiUrl = `${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/permissions/definitions?${params}`;
       console.log('Fetching permissions from:', apiUrl);
 
       const response = await fetch(apiUrl, {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          ...getAuthHeaders()
         }
       });
 
@@ -159,13 +160,13 @@ export const PermissionDefinitions: React.FC = () => {
   // 获取权限分类
   const fetchCategories = async () => {
     try {
-      const apiUrl = `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/permissions/categories`;
+      const apiUrl = `${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/permissions/categories`;
       console.log('Fetching categories from:', apiUrl);
 
       const response = await fetch(apiUrl, {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+          ...getAuthHeaders()
         }
       });
 
@@ -195,12 +196,12 @@ export const PermissionDefinitions: React.FC = () => {
   const createPermission = async () => {
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/permissions/definitions`,
+        `${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/permissions/definitions`,
         {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
+            ...getAuthHeaders()
           },
           body: JSON.stringify(formData)
         }
@@ -241,12 +242,12 @@ export const PermissionDefinitions: React.FC = () => {
 
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/permissions/definitions/${editingPermission.id}`,
+        `${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/permissions/definitions/${editingPermission.id}`,
         {
           method: 'PUT',
           headers: {
             'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
+            ...getAuthHeaders()
           },
           body: JSON.stringify(formData)
         }
@@ -287,12 +288,12 @@ export const PermissionDefinitions: React.FC = () => {
 
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/permissions/definitions/${id}`,
+        `${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/permissions/definitions/${id}`,
         {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
+            ...getAuthHeaders()
           }
         }
       );
@@ -316,12 +317,12 @@ export const PermissionDefinitions: React.FC = () => {
   const togglePermission = async (id: string) => {
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/permissions/definitions/${id}/toggle`,
+        `${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/permissions/definitions/${id}/toggle`,
         {
           method: 'PATCH',
           headers: {
             'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
+            ...getAuthHeaders()
           }
         }
       );

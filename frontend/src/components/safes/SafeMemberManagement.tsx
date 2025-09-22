@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { buildApiUrl, API_ENDPOINTS, getAuthHeaders } from '../config/api';
 import { 
   Users, 
   UserPlus, 
@@ -58,11 +59,11 @@ export const SafeMemberManagement: React.FC<SafeMemberManagementProps> = ({
   const fetchMembers = async () => {
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/safes/${safeId}/members`,
+        `${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/safes/${safeId}/members`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
+            ...getAuthHeaders()
           }
         }
       );
@@ -83,11 +84,11 @@ export const SafeMemberManagement: React.FC<SafeMemberManagementProps> = ({
   const fetchAvailableRoles = async () => {
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/safes/${safeId}/available-roles`,
+        `${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/safes/${safeId}/available-roles`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
+            ...getAuthHeaders()
           }
         }
       );
@@ -117,12 +118,12 @@ export const SafeMemberManagement: React.FC<SafeMemberManagementProps> = ({
   const updateMemberRole = async (memberId: string, newRoleId: string) => {
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/safes/${safeId}/members/${memberId}/role`,
+        `${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/safes/${safeId}/members/${memberId}/role`,
         {
           method: 'PUT',
           headers: {
             'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
+            ...getAuthHeaders()
           },
           body: JSON.stringify({ role_id: newRoleId })
         }
@@ -146,12 +147,12 @@ export const SafeMemberManagement: React.FC<SafeMemberManagementProps> = ({
 
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/safes/${safeId}/members/${memberId}`,
+        `${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/safes/${safeId}/members/${memberId}`,
         {
           method: 'DELETE',
           headers: {
             'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
+            ...getAuthHeaders()
           }
         }
       );

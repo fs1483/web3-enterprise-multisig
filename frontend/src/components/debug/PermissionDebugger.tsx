@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { buildApiUrl, API_ENDPOINTS, getAuthHeaders } from '../config/api';
 import { useAuthStore } from '../../stores/authStore';
 import { usePermissions } from '../../hooks/usePermissions';
 
@@ -13,11 +14,11 @@ const PermissionDebugger: React.FC = () => {
     try {
       // 1. 获取用户权限映射
       const mappingsResponse = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/permission-mappings/user`,
+        `${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/permission-mappings/user`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
+            ...getAuthHeaders()
           }
         }
       );
@@ -25,11 +26,11 @@ const PermissionDebugger: React.FC = () => {
 
       // 2. 获取用户权限列表
       const userPermissionsResponse = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/users/${user?.id}/permissions`,
+        `${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/users/${user?.id}/permissions`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
+            ...getAuthHeaders()
           }
         }
       );
@@ -37,11 +38,11 @@ const PermissionDebugger: React.FC = () => {
 
       // 3. 获取权限定义
       const definitionsResponse = await fetch(
-        `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'}/api/v1/permissions/definitions?scope=system`,
+        `${import.meta.env.VITE_API_BASE_URL || buildApiUrl('')}/api/v1/permissions/definitions?scope=system`,
         {
           headers: {
             'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
+            ...getAuthHeaders()
           }
         }
       );

@@ -21,7 +21,7 @@ INSERT INTO users (
     gen_random_uuid(),
     'superadmin',
     'admin@company.com',
-    '$2a$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', -- password: "SuperAdmin@123"
+    '$2a$10$qAtm4z7ZPl2XwOZNaBheI.fOytlZ9.AG1seB2JvEujkOEwenxFJP.', -- password: "SuperAdmin@123"
     '0x0000000000000000000000000000000000000001', -- 占位地址
     'super_admin',
     true,
@@ -29,52 +29,8 @@ INSERT INTO users (
     NOW()
 ) ON CONFLICT (email) DO NOTHING;
 
--- 为超级管理员分配所有系统权限
-DO $$
-DECLARE
-    admin_user_id UUID;
-    perm_record RECORD;
-BEGIN
-    -- 获取超级管理员用户ID
-    SELECT id INTO admin_user_id 
-    FROM users 
-    WHERE email = 'admin@company.com' AND role = 'super_admin';
-    
-    -- 如果找到超级管理员用户，为其分配所有系统权限
-    IF admin_user_id IS NOT NULL THEN
-        -- 为超级管理员分配所有系统级权限
-        FOR perm_record IN 
-            SELECT code FROM permission_definitions 
-            WHERE scope = 'system' AND is_active = true
-        LOOP
-            INSERT INTO user_custom_permissions (
-                id,
-                user_id,
-                permission_code,
-                granted_by,
-                granted_at,
-                expires_at,
-                is_active,
-                created_at,
-                updated_at
-            ) VALUES (
-                gen_random_uuid(),
-                admin_user_id,
-                perm_record.code,
-                admin_user_id, -- 自己授权给自己
-                NOW(),
-                NULL, -- 永不过期
-                true,
-                NOW(),
-                NOW()
-            ) ON CONFLICT (user_id, permission_code) DO NOTHING;
-        END LOOP;
-        
-        RAISE NOTICE '超级管理员权限初始化完成，用户ID: %', admin_user_id;
-    ELSE
-        RAISE NOTICE '未找到超级管理员用户，请检查用户创建是否成功';
-    END IF;
-END $$;
+-- 注意：超级管理员不需要在 user_custom_permissions 表中分配具体权限
+-- 系统通过 role = 'super_admin' 直接判断，拥有所有权限
 
 -- =====================================================
 -- 创建系统初始化检查函数
@@ -113,27 +69,25 @@ BEGIN
         END,
         ('Total active permissions: ' || (SELECT COUNT(*) FROM permission_definitions WHERE is_active = true))::TEXT;
     
-    -- 检查超级管理员权限
+    -- 检查超级管理员角色（不需要检查具体权限分配）
     RETURN QUERY
     SELECT 
-        'SuperAdmin Permissions'::VARCHAR(50),
+        'SuperAdmin Role'::VARCHAR(50),
         CASE 
             WHEN EXISTS(
-                SELECT 1 FROM user_custom_permissions ucp
-                JOIN users u ON ucp.user_id = u.id
-                WHERE u.role = 'super_admin' AND ucp.is_active = true
+                SELECT 1 FROM users u
+                WHERE u.role = 'super_admin' AND u.is_active = true
             )
             THEN 'OK'::VARCHAR(20)
             ELSE 'MISSING'::VARCHAR(20)
         END,
         CASE 
             WHEN EXISTS(
-                SELECT 1 FROM user_custom_permissions ucp
-                JOIN users u ON ucp.user_id = u.id
-                WHERE u.role = 'super_admin' AND ucp.is_active = true
+                SELECT 1 FROM users u
+                WHERE u.role = 'super_admin' AND u.is_active = true
             )
-            THEN 'Super admin has system permissions assigned'::TEXT
-            ELSE 'Super admin permissions not found'::TEXT
+            THEN 'Super admin role exists and is active (inherits all permissions)'::TEXT
+            ELSE 'No active super admin user found'::TEXT
         END;
 END;
 $$ LANGUAGE plpgsql;
