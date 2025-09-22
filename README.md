@@ -12,8 +12,13 @@
 </div>
 
 ## 📋 项目概述
-
 Web3 企业级多签钱包管理系统是一个面向企业的去中心化资产管理解决方案。该系统解决了传统企业在管理数字资产时面临的安全性、合规性和操作复杂性问题。
+
+## 项目演示
+- 地址：http://multisig.rapidbuildx.tech/
+- 用户名：viewer@multisig.demo
+- 密  码：Demo@123456
+
 
 ### 🎯 主要解决的问题
 
@@ -179,7 +184,7 @@ web3-enterprise-multisig/
 ### 1. 克隆项目
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/fs1483/web3-enterprise-multisig.git
 cd web3-enterprise-multisig
 ```
 
