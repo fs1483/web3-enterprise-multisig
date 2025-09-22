@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS safes (
     
     -- 多签配置
     threshold INTEGER NOT NULL, -- 签名阈值
-    owners JSONB NOT NULL, -- 所有者地址数组
+    owners TEXT[] NOT NULL, -- 所有者地址数组
     
     -- 创建信息
     created_by UUID NOT NULL REFERENCES users(id),
